@@ -110,7 +110,7 @@ htmlcov/
 *.sql
 *.dump
 *.backup
-
+!database/init/*.sql
 # =========================================================
 # SYSCAFÉ / DBF / ERP FILES
 # =========================================================
@@ -147,11 +147,19 @@ storage/raw/
 storage/processed/
 storage/exports/
 
-# ETL uploads
-services/etl/uploads/
-services/etl/temp/
-services/etl/output/
+# IGNORAR DATA (Mantener interno por seguridad y tamaño)
+services/etl/uploads/*
+services/etl/temp/*
+services/etl/output/*
 
+# Permitir que Git recuerde la existencia de las carpetas usando un .gitkeep
+!services/etl/uploads/.gitkeep
+!services/etl/temp/.gitkeep
+!services/etl/output/.gitkeep
+
+# IGNORAR CACHÉ DE PYTHON (Crucial para que el repo esté limpio)
+services/etl/__pycache__/
+services/etl/**/*.pyc
 # =========================================================
 # DOCKER
 # =========================================================
