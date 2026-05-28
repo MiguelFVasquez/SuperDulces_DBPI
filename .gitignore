@@ -1,0 +1,206 @@
+# =========================================================
+# SUPERDULCES BI - GLOBAL .gitignore
+# =========================================================
+
+# =========================================================
+# OS / SYSTEM
+# =========================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================================================
+# IDEs / EDITORS
+# =========================================================
+
+# VSCode
+.vscode/
+
+# JetBrains
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+
+# Sublime
+*.sublime-project
+*.sublime-workspace
+
+# =========================================================
+# ENVIRONMENT VARIABLES / SECRETS
+# =========================================================
+.env
+.env.*
+!.env.example
+
+# =========================================================
+# LOGS
+# =========================================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================================================
+# NODE / FRONTEND
+# =========================================================
+
+# Dependencies
+node_modules/
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# Vite
+vite.svg
+
+# Coverage
+coverage/
+
+# Cache
+.cache/
+.parcel-cache/
+
+# =========================================================
+# PYTHON / BACKEND / ETL
+# =========================================================
+
+# Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+
+# =========================================================
+# DATABASES
+# =========================================================
+
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# PostgreSQL dumps
+*.sql
+*.dump
+*.backup
+
+# =========================================================
+# SYSCAFÉ / DBF / ERP FILES
+# =========================================================
+
+# DBF ecosystem
+*.dbf
+*.DBF
+*.cdx
+*.CDX
+*.fpt
+*.FPT
+*.dbc
+*.DBC
+*.dct
+*.DCT
+*.dcx
+*.DCX
+
+# SysCafé backups
+*.BKSYSCAFE
+*.bksyscafe
+
+# Inventory exports
+*.CAFEINVFIS
+
+# Generic ERP exports
+*.csv
+*.xlsx
+*.xls
+*.ods
+
+# Raw data folders
+storage/raw/
+storage/processed/
+storage/exports/
+
+# ETL uploads
+services/etl/uploads/
+services/etl/temp/
+services/etl/output/
+
+# =========================================================
+# DOCKER
+# =========================================================
+docker-data/
+postgres-data/
+
+# =========================================================
+# FRONTEND GENERATED FILES
+# =========================================================
+apps/frontend/.turbo/
+apps/frontend/.vercel/
+
+# =========================================================
+# BACKEND GENERATED FILES
+# =========================================================
+apps/backend/uploads/
+apps/backend/media/
+
+# =========================================================
+# SECRETS / CERTIFICATES
+# =========================================================
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+
+# =========================================================
+# TEMP FILES
+# =========================================================
+tmp/
+temp/
+*.tmp
+
+# =========================================================
+# MAC / LINUX HIDDEN FILES
+# =========================================================
+.AppleDouble
+.LSOverride
+
+# =========================================================
+# ARCHIVES
+# =========================================================
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# =========================================================
+# OPTIONAL: KEEP EMPTY FOLDERS TRACKED
+# =========================================================
+!.gitkeep
