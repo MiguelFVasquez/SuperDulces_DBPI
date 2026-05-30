@@ -6,6 +6,8 @@ INVALID_DETAIL_PATTERNS = [
     "TRASLADO",
     "TRAS",
     "DESCUENTO",
+    "COMPRAS",
+    "DEVOLUCION",
 ]
 
 def is_real_product(row: dict) -> bool:
