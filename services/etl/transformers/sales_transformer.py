@@ -3,6 +3,9 @@ from decimal import Decimal
 INVALID_DETAIL_PATTERNS = [
     "FRA DE VNTA",
     "IVA",
+    "TRASLADO",
+    "TRAS",
+    "DESCUENTO",
 ]
 
 def is_real_product(row: dict) -> bool:
