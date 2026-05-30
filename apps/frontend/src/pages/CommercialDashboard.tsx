@@ -81,7 +81,7 @@ export function CommercialDashboard() {
       {/* Sección de Gráficos Distribuidos en Grilla Responsiva */}
      <div className="grid grid-cols-1">
         {loading ? (
-          <div className="h-[480px] bg-white animate-pulse rounded-xl border border-slate-200" />
+         <div className="h-[480px] bg-white dark:bg-slate-900 animate-pulse rounded-xl border border-slate-200 dark:border-slate-800 transition-colors duration-300" />
         ) : (
           <ProductsAnalyticChart 
             topProducts={topProducts} 

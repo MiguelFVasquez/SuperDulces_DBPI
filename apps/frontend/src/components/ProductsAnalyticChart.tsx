@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTheme } from "@/components/theme-provider"; // <-- Importamos el hook
 import type { TopProduct } from "@/lib/models/metrics";
 
 interface Props {
@@ -12,7 +13,10 @@ type ChartView = "top_revenue" | "top_qty" | "least_revenue";
 
 export function ProductsAnalyticChart({ topProducts, leastProducts }: Props) {
   const [currentView, setCurrentView] = useState<ChartView>("top_revenue");
+  const { theme } = useTheme(); // <-- Obtenemos el tema actual
 
+  // Determinamos si es oscuro (manejando el caso "system")
+  const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   // Configuración dinámica del gráfico según el estado del selector
   const getChartConfig = () => {
     switch (currentView) {
@@ -57,29 +61,41 @@ export function ProductsAnalyticChart({ topProducts, leastProducts }: Props) {
   };
 
   return (
-    <Card className="border-slate-200 shadow-sm w-full">
+    <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm w-full transition-colors duration-300">
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6">
-        <CardTitle className="text-lg font-semibold text-slate-700">
+       <CardTitle className="text-lg font-semibold text-slate-700 dark:text-slate-200">
           {config.title}
         </CardTitle>
         
         {/* Selector de Vistas optimizado para UX */}
-        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-medium self-end sm:self-auto">
+        <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-medium self-end sm:self-auto">
           <button
             onClick={() => setCurrentView("top_revenue")}
-            className={`px-3 py-1.5 rounded-md transition-all ${currentView === "top_revenue" ? "bg-white text-slate-900 shadow-sm font-semibold" : "text-slate-500 hover:text-slate-900"}`}
+            className={`px-3 py-1.5 rounded-md transition-all ${
+              currentView === "top_revenue" 
+                ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm font-semibold" 
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
           >
             Top Ingresos
           </button>
           <button
             onClick={() => setCurrentView("top_qty")}
-            className={`px-3 py-1.5 rounded-md transition-all ${currentView === "top_qty" ? "bg-white text-slate-900 shadow-sm font-semibold" : "text-slate-500 hover:text-slate-900"}`}
+            className={`px-3 py-1.5 rounded-md transition-all ${
+              currentView === "top_qty" 
+                ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm font-semibold" 
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
           >
             Top Unidades
           </button>
           <button
             onClick={() => setCurrentView("least_revenue")}
-            className={`px-3 py-1.5 rounded-md transition-all ${currentView === "least_revenue" ? "bg-white text-slate-900 shadow-sm font-semibold" : "text-slate-500 hover:text-slate-900"}`}
+            className={`px-3 py-1.5 rounded-md transition-all ${
+              currentView === "least_revenue" 
+                ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm font-semibold" 
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+            }`}
           >
             Menor Rotación
           </button>
@@ -89,20 +105,26 @@ export function ProductsAnalyticChart({ topProducts, leastProducts }: Props) {
       <CardContent className="h-[400px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={config.data} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-            <XAxis type="number" hide />
+            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke={isDark ? "#334155" : "#f1f5f9"} /><XAxis type="number" hide />
             <YAxis 
               dataKey="name" 
               type="category" 
               width={160} 
-              tick={{ fontSize: 10, fill: "#64748b" }}
+              tick={{ fontSize: 10, fill: isDark ? "#94a3b8" : "#64748b" }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(value) => value.length > 22 ? `${value.substring(0, 22)}...` : value}
             />
             <Tooltip 
-              cursor={{ fill: '#f8fafc' }}
-              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+              cursor={{ fill: isDark ? '#1e293b' : '#f8fafc' }}
+              contentStyle={{ 
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                borderColor: isDark ? '#1e293b' : '#f1f5f9',
+                color: isDark ? '#f8fafc' : '#0f172a',
+                borderRadius: '8px', 
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
+              }}
+              itemStyle={{ color: isDark ? '#e2e8f0' : '#334155' }}
               formatter={formatTooltip}
             />
             <Bar dataKey={config.dataKey} radius={[0, 4, 4, 0]} barSize={30}>
