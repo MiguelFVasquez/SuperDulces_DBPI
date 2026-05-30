@@ -1,29 +1,32 @@
 import { useEffect, useState } from "react";
 import { Receipt, ShoppingCart, Package, TrendingUp } from "lucide-react";
 import { KpiCard } from "@/components/KpiCard";
-import { getSalesMetrics, getTicketAverage, getTopProducts }from "@/lib/api";
-import { TopProductsChart } from "@/components/TopProductsChart";
+import { getLeastProducts, getSalesMetrics, getTicketAverage, getTopProducts }from "@/lib/api";
 import type { SalesMetrics, TicketAverage, TopProduct } from "@/lib/models/metrics";
+import { ProductsAnalyticChart } from "@/components/ProductsAnalyticChart";
 
 export function CommercialDashboard() {
   const [sales, setSales] = useState<SalesMetrics | null>(null);
   const [ticket, setTicket] = useState<TicketAverage | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [leastProducts, setLeastProducts] = useState<TopProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         // Ejecutamos ambas peticiones en paralelo para optimizar la carga
-        const [salesData, ticketData, productsData] = await Promise.all([
+        const [salesData, ticketData, productsData, leastProductsData] = await Promise.all([
           getSalesMetrics(),
           getTicketAverage(),
-          getTopProducts()  
+          getTopProducts(),
+          getLeastProducts()
         ]);
         
         setSales(salesData);
         setTicket(ticketData);
         setTopProducts(productsData);
+        setLeastProducts(leastProductsData);
       } catch (error) {
         console.error("Error al cargar las métricas desde FastAPI:", error);
         // Fallbacks en caso de que el servidor esté apagado
@@ -47,7 +50,7 @@ export function CommercialDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Fila de KPIs mapeados a los datos reales */}
+      {/* Fila de KPIs */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           title="Transacciones"
@@ -67,7 +70,6 @@ export function CommercialDashboard() {
           description="Valor medio por transacción"
           icon={<Receipt className="h-5 w-5 text-brand-yellow" />}
         />
-        {/* Tarjeta estática por ahora, luego la conectamos a otra métrica */}
         <KpiCard
           title="Estado del Sistema"
           value="En Línea"
@@ -76,12 +78,15 @@ export function CommercialDashboard() {
         />
       </div>
 
-      {/* Espacio para la gráfica de Recharts */}
-      <div className="grid gap-6 grid-cols-1">
+      {/* Sección de Gráficos Distribuidos en Grilla Responsiva */}
+     <div className="grid grid-cols-1">
         {loading ? (
-          <div className="h-96 bg-white animate-pulse rounded-xl border border-slate-200" />
+          <div className="h-[480px] bg-white animate-pulse rounded-xl border border-slate-200" />
         ) : (
-          <TopProductsChart data={topProducts} />
+          <ProductsAnalyticChart 
+            topProducts={topProducts} 
+            leastProducts={leastProducts} 
+          />
         )}
       </div>
     </div>

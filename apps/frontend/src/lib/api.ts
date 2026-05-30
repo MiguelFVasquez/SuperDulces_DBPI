@@ -24,6 +24,12 @@ export const getTopProducts = async (): Promise<TopProduct[]> => {
   return response.data;
 };
 
+//Función para obtener los productos menos vendidos
+export const getLeastProducts = async (): Promise<TopProduct[]> => {
+  const response = await api.get("/least-products");
+  return response.data;
+}
+
 // Función para obtener el ticket promedio
 export const getTicketAverage = async (): Promise<TicketAverage> => {
   const response = await api.get("/ticket-average");
