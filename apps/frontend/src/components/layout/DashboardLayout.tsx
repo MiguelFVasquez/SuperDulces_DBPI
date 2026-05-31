@@ -3,7 +3,7 @@ import { LayoutDashboard, PackageSearch, Settings, Menu, ChevronLeft } from "luc
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils"; // Utilidad de shadcn para manejar clases condicionales
-import { ThemeToggle } from "../ThemeToggle";
+import { ThemeToggle } from "../Theme/ThemeToggle";
 
 interface DashboardLayoutProps {
   children: ReactNode;

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useTheme } from "@/components/theme-provider"; // <-- Importamos el hook
+import { useTheme } from "@/components/Theme/Theme-provider"; // <-- Importamos el hook
 import type { TopProduct } from "@/lib/models/metrics";
 
 interface Props {
