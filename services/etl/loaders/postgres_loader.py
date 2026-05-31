@@ -110,3 +110,43 @@ def load_sales(conn, sales):
         ))
 
     cursor.close()
+
+# Carga del maestro de artículos respetando la relación con inventario
+def load_articles(conn, articles):
+    """
+    Carga el maestro de artículos actualizando costo en products 
+    y el stock en inventory.
+    """
+    cursor = conn.cursor()
+    
+    for art in articles:
+        # 1. Upsert en products (Insertar o Actualizar costo y nombre)
+        cursor.execute("""
+            INSERT INTO products (sku, name, unit_cost)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (sku) DO UPDATE
+            SET name = EXCLUDED.name,
+                unit_cost = EXCLUDED.unit_cost
+            RETURNING product_id
+        """, (art["sku"], art["name"], art["unit_cost"]))
+        
+        result = cursor.fetchone()
+        
+        # Fallback por si DO UPDATE no retorna el ID en algunas versiones de psycopg2
+        if not result:
+            cursor.execute("SELECT product_id FROM products WHERE sku = %s", (art["sku"],))
+            result = cursor.fetchone()
+            
+        if result:
+            product_id = result[0]
+            
+            # 2. Upsert en inventory (Actualiza el stock actual)
+            cursor.execute("""
+                INSERT INTO inventory (product_id, current_stock, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (product_id) DO UPDATE
+                SET current_stock = EXCLUDED.current_stock,
+                    updated_at = NOW()
+            """, (product_id, art["current_stock"]))
+
+    cursor.close()
