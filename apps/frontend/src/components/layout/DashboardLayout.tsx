@@ -7,14 +7,16 @@ import { ThemeToggle } from "../Theme/ThemeToggle";
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  activeView: string; // Recibimos la vista actual desde App.tsx
+  setActiveView: (view: string) => void; // Recibimos la función para cambiar la vista
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, activeView, setActiveView }: DashboardLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const menuItems = [
-    { icon: LayoutDashboard, label: "Comercial", color: "text-brand-orange", active: true },
-    { icon: PackageSearch, label: "Inventario", color: "text-brand-blue", active: false },
+    { id: "comercial",icon: LayoutDashboard, label: "Comercial", color: "text-brand-orange", active: true },
+    { id: "inventario", icon: PackageSearch, label: "Inventario", color: "text-brand-blue", active: false },
   ];
 
   return (
@@ -62,9 +64,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <Button 
               key={item.label}
               variant="ghost" 
+              onClick={() => setActiveView(item.id)} 
               className={cn(
                 "w-full justify-start hover:bg-white/10 hover:text-white transition-all",
-                item.active && "bg-white/10 text-white",
+                activeView === item.id && "bg-white/10 text-white",
                 isCollapsed ? "px-2 justify-center" : "px-3"
               )}
             >
@@ -111,7 +114,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Header Superior con soporte oscuro */}
         <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 shadow-sm transition-colors duration-300">
           <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-            Dashboard Comercial
+            {activeView === "comercial" ? "Dashboard Comercial" : "Control de Inventario"}
           </h2>
           <div className="flex items-center gap-4 text-xs text-slate-400 dark:text-slate-500 font-medium tracking-wider">
             SISTEMA DE MÉTRICAS v1.0
