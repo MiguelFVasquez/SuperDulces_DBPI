@@ -111,6 +111,7 @@ htmlcov/
 *.dump
 *.backup
 !database/init/*.sql
+!database/migrations/*.sql
 # =========================================================
 # SYSCAFÉ / DBF / ERP FILES
 # =========================================================
