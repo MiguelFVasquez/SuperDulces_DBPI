@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
+from routers import inventory
 from routers import metrics
 
 app = FastAPI(
@@ -26,7 +27,8 @@ app.add_middleware(
 )
 
 # Registrar las rutas analíticas
-app.include_router(metrics.router)
+app.include_router(metrics.router) # Ruta de las metricas 
+app.include_router(inventory.router) # Ruta de inventario
 
 @app.get("/")
 def read_root():

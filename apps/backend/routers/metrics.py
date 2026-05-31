@@ -16,7 +16,9 @@ def get_top_products(limit: int = 5, db: Session = Depends(get_db)):
             Product.sku,
             Product.name,
             func.sum(Sale.quantity).label("total_qty"),
-            func.sum(Sale.revenue).label("total_revenue")
+            func.sum(Sale.revenue).label("total_revenue"),
+            # Calculamos el costo total multiplicando cantidad vendida por costo unitario
+            func.sum(Sale.quantity * Product.unit_cost).label("total_cost")
         )
         .join(Sale, Product.product_id == Sale.product_id)
         .group_by(Product.product_id, Product.sku, Product.name)
@@ -24,7 +26,24 @@ def get_top_products(limit: int = 5, db: Session = Depends(get_db)):
         .limit(limit)
         .all()
     )
-    return [dict(row._mapping) for row in result]
+    response = []
+    for row in result:
+        rev = float(row.total_revenue or 0)
+        cost = float(row.total_cost or 0)
+        profit = rev - cost
+        margin = (profit / rev * 100) if rev > 0 else 0
+        
+        response.append({
+            "sku": row.sku,
+            "name": row.name,
+            "total_qty": row.total_qty,
+            "total_revenue": rev,
+            "total_cost": cost,
+            "total_profit": profit,
+            "margin_percentage": round(margin, 2)
+        })
+        
+    return response
 
 # Endpoint para obtener los productos con menores ingresos acumuladoss
 @router.get("/least-products")
@@ -35,7 +54,8 @@ def get_least_products(limit: int = 5, db: Session = Depends(get_db)):
             Product.sku,
             Product.name,
             func.sum(Sale.quantity).label("total_qty"),
-            func.sum(Sale.revenue).label("total_revenue")
+            func.sum(Sale.revenue).label("total_revenue"),
+            func.sum(Sale.quantity * Product.unit_cost).label("total_cost")
         )
         .join(Sale, Product.product_id == Sale.product_id)
         .group_by(Product.product_id, Product.sku, Product.name)
@@ -43,7 +63,24 @@ def get_least_products(limit: int = 5, db: Session = Depends(get_db)):
         .limit(limit)
         .all()
     )
-    return [dict(row._mapping) for row in result]
+    response = []
+    for row in result:
+        rev = float(row.total_revenue or 0)
+        cost = float(row.total_cost or 0)
+        profit = rev - cost
+        margin = (profit / rev * 100) if rev > 0 else 0
+        
+        response.append({
+            "sku": row.sku,
+            "name": row.name,
+            "total_qty": row.total_qty,
+            "total_revenue": rev,
+            "total_cost": cost,
+            "total_profit": profit,
+            "margin_percentage": round(margin, 2)
+        })
+        
+    return response
 
 # Endpoint para obtener un resumen transaccional de ventas
 @router.get("/sales")
