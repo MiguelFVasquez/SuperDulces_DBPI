@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { LayoutDashboard, PackageSearch, Settings, Menu, ChevronLeft } from "lucide-react";
+import { PackageSearch, Settings, Menu, ChevronLeft, Receipt, BadgeDollarSign  } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils"; // Utilidad de shadcn para manejar clases condicionales
@@ -15,8 +15,9 @@ export function DashboardLayout({ children, activeView, setActiveView }: Dashboa
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const menuItems = [
-    { id: "comercial",icon: LayoutDashboard, label: "Comercial", color: "text-brand-orange", active: true },
+    { id: "comercial",icon: BadgeDollarSign, label: "Comercial", color: "text-brand-orange", active: true },
     { id: "inventario", icon: PackageSearch, label: "Inventario", color: "text-brand-blue", active: false },
+    { id:"facturas", icon: Receipt, label: "Facturas", color: "text-green-500", active: false},
   ];
 
   return (
@@ -113,8 +114,10 @@ export function DashboardLayout({ children, activeView, setActiveView }: Dashboa
       <main className="flex-1 flex flex-col h-screen overflow-hidden bg-brand-light dark:bg-slate-950 transition-colors duration-300">
         {/* Header Superior con soporte oscuro */}
         <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 shadow-sm transition-colors duration-300">
-          <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-            {activeView === "comercial" ? "Dashboard Comercial" : "Control de Inventario"}
+          <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 transition-colors duration-300" >
+            {activeView === "comercial" && "Dashboard Comercial"}
+            {activeView === "inventario" && "Control de Inventario"}
+            {activeView === "facturas" && "Automatización de Facturas"}
           </h2>
           <div className="flex items-center gap-4 text-xs text-slate-400 dark:text-slate-500 font-medium tracking-wider">
             SISTEMA DE MÉTRICAS v1.0

@@ -1,6 +1,7 @@
 import axios from "axios";
 import type { SalesMetrics, TopProduct, TicketAverage } from "./models/metrics";
 import type { Inventory } from "./models/inventory";
+import type { ReceiptResponse } from "./models/receipts";
 // Aquí definimos la URL de tu backend en FastAPI
 const api = axios.create({
   baseURL: "http://127.0.0.1:8000", //URL base de la API
@@ -36,8 +37,22 @@ export const getTicketAverage = async (): Promise<TicketAverage> => {
   return response.data;
 };
 
+//Función para obtener el estado del inventario
 export const getInventoryStatus = async (): Promise<Inventory[]> => {
   const response = await api.get("/inventory/");
+  return response.data;
+};
+
+// Exportamos el objeto api para su uso en otros archivos
+export const sendDocument = async (file: File): Promise<ReceiptResponse> => {
+  const formData = new FormData();
+  formData.append("file", file);
+  
+  // Le decimos a axios/api que la respuesta será de tipo ReceiptResponse
+  const response = await api.post<ReceiptResponse>("/receipts/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" }
+  });
+  
   return response.data;
 };
 
