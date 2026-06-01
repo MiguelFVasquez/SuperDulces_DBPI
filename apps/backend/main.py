@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
+from routers import receipts
 from routers import inventory
 from routers import metrics
 
@@ -29,7 +30,7 @@ app.add_middleware(
 # Registrar las rutas analíticas
 app.include_router(metrics.router) # Ruta de las metricas 
 app.include_router(inventory.router) # Ruta de inventario
-
+app.include_router(receipts.router) # Ruta de automatización de facturas
 @app.get("/")
 def read_root():
     return {
