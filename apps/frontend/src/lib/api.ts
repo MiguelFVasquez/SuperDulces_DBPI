@@ -48,11 +48,17 @@ export const sendDocument = async (file: File): Promise<ReceiptResponse> => {
   const formData = new FormData();
   formData.append("file", file);
   
-  // Le decimos a axios/api que la respuesta será de tipo ReceiptResponse
-  const response = await api.post<ReceiptResponse>("/receipts/upload", formData, {
+  
+const response = await api.post<ReceiptResponse>("/receipts/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" }
   });
   
+  return response.data;
+};
+
+// Función para actualizar el stock mínimo de un producto
+export const updateMinStock = async (sku: string, minStock: number): Promise<any> => {
+  const response = await api.put(`/inventory/min-stock?sku=${sku}&min_stock=${minStock}`);
   return response.data;
 };
 

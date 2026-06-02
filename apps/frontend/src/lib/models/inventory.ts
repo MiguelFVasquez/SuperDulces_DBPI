@@ -4,4 +4,5 @@ export interface Inventory{
   unit_cost: number;
   current_stock: number;
   total_value: number;
+  min_stock: number
 }

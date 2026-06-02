@@ -9,18 +9,21 @@ export function InventoryDashboard() {
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchInventory = async () => {
-      try {
-        const data = await getInventoryStatus();
-        setInventory(data);
-      } catch (error) {
-        console.error("Error al obtener el inventario:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
 
+  // 1. Extraemos la función para poder reutilizarla
+  const fetchInventory = async () => {
+    try {
+      const data = await getInventoryStatus();
+      setInventory(data);
+    } catch (error) {
+      console.error("Error al obtener el inventario:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+ useEffect(() => {
     fetchInventory();
   }, []);
 
@@ -62,10 +65,10 @@ export function InventoryDashboard() {
 
       {/* Contenedor de la Tabla */}
       <div className="grid grid-cols-1">
-        {loading ? (
+        {loading && inventory.length === 0 ? (
           <div className="h-[600px] bg-white dark:bg-slate-900 animate-pulse rounded-xl border border-slate-200 dark:border-slate-800 transition-colors duration-300" />
         ) : (
-          <InventoryTable data={inventory} />
+          <InventoryTable data={inventory} onUpdateSuccess={fetchInventory} />
         )}
       </div>
     </div>

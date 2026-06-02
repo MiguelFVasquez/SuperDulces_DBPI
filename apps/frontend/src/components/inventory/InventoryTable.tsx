@@ -1,29 +1,94 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search } from "lucide-react";
+import { Search,Pencil, Check, X, Loader2 } from "lucide-react";
 import type { Inventory } from "@/lib/models/inventory"; // Ajusta la ruta a donde guardaste la interfaz
+import { updateMinStock } from "@/lib/api"; // Asegúrate de importar la función para actualizar el stock mínimo
+
+
 
 interface Props {
   data: Inventory[];
+  onUpdateSuccess?: () => void; // Prop para notificar al padre que se actualizó el stock mínimo (opcional)
 }
 
-export function InventoryTable({ data }: Props) {
+export function InventoryTable({ data, onUpdateSuccess }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
+  // Estados para la edición en línea
+  const [tableData, setTableData] = useState<Inventory[]>([]);
+  const [editingSku, setEditingSku] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<number>(0);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  // Estado para manejar un pequeño mensaje de éxito en la UI
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Filtrado reactivo por SKU o Nombre
   const filteredData = data.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  // Sincronizar los datos entrantes con el estado local de la tabla
+  useEffect(() => {
+    setTableData(data);
+  }, [data]);
 
+  // Formateadores para moneda y números
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
-
+  // Formateador para números sin decimales
   const formatNumber = (value: number) =>
     new Intl.NumberFormat("es-CO").format(value);
 
+  // --- LÓGICA DE EDICIÓN ---
+  
+  // Función para iniciar la edición de un campo específico
+  const startEditing = (sku: string, currentMinStock: number) => {
+    setEditingSku(sku);
+    setEditValue(currentMinStock);
+  };
+  // Función para cancelar la edición y volver al estado original
+  const cancelEditing = () => {
+    setEditingSku(null);
+    setEditValue(0);
+    setSuccessMessage(null); // Limpiamos mensajes anteriores
+  };
+
+  const handleSave = async (sku: string) => {
+    setIsSaving(true);
+    try {
+      await updateMinStock(sku, editValue);
+      
+      // Actualizamos la tabla localmente para que se sienta instantáneo
+      setTableData(prevData => 
+        prevData.map(item => 
+          item.sku === sku ? { ...item, min_stock: editValue } : item
+        )
+      );
+      
+      setEditingSku(null);
+      
+      // Notificamos en la UI
+      setSuccessMessage(`✅ Stock mínimo de ${sku} actualizado a ${editValue}`);
+      setTimeout(() => setSuccessMessage(null), 4000); // Se oculta en 4 segundos
+      
+      // Llamamos al padre para que recargue todo por detrás
+      onUpdateSuccess?.();
+
+    } catch (error) {
+      console.error("Error al actualizar el stock mínimo:", error);
+      alert("Hubo un error de conexión al guardar. Verifica el backend.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-colors duration-300">
+      {successMessage && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded-md shadow-md animate-in fade-in slide-in-from-top-2 flex items-center gap-2 text-sm font-medium">
+          {successMessage}
+        </div>
+      )}
       <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4">
         <CardTitle className="text-lg font-semibold text-slate-700 dark:text-slate-200">
           Estado de Bodega
@@ -54,6 +119,8 @@ export function InventoryTable({ data }: Props) {
                 <th scope="col" className="px-6 py-3 font-medium text-right">Costo Unit.</th>
                 <th scope="col" className="px-6 py-3 font-medium text-right">Stock</th>
                 <th scope="col" className="px-6 py-3 font-medium text-right">Valor Total</th>
+                <th scope="col" className="px-6 py-3 font-medium text-right">Stock Mínimo</th>
+                <th scope="col" className="px-6 py-3 font-medium text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -81,6 +148,52 @@ export function InventoryTable({ data }: Props) {
                     <td className="px-6 py-3 text-right font-medium text-slate-700 dark:text-slate-300">
                       {formatCurrency(item.total_value)}
                     </td>
+                    <td className="px-6 py-3 text-center">
+                      {editingSku === item.sku ? (
+                        <input
+                          type="number"
+                          min="0"
+                          value={editValue}
+                          onChange={(e) => setEditValue(Number(e.target.value))}
+                          className="w-20 px-2 py-1 text-center bg-white dark:bg-slate-950 border border-brand-orange rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/50 dark:text-white"
+                          autoFocus
+                          disabled={isSaving}
+                        />
+                      ) : (
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${item.current_stock < item.min_stock ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'}`}>
+                          {formatNumber(item.min_stock)}
+                        </span>
+                      )}
+                    </td>
+                    {/* CELDA DE ACCIONES */}
+                    <td className="px-4 py-3 text-center">
+                      {editingSku === item.sku ? (
+                        <div className="flex items-center justify-center gap-2">
+                          {isSaving ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-brand-orange" />
+                          ) : (
+                            <>
+                              <button onClick={() => handleSave(item.sku)} className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-md transition-colors" title="Guardar">
+                                <Check className="h-4 w-4" />
+                              </button>
+                              <button onClick={cancelEditing} className="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors" title="Cancelar">
+                                <X className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => startEditing(item.sku, item.min_stock)} 
+                          className="p-1.5 text-slate-400 hover:text-brand-blue hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                          title="Editar stock mínimo"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      )}
+                    </td>
+
+
                   </tr>
                 ))
               ) : (
