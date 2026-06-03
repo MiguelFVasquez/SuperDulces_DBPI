@@ -30,8 +30,7 @@ export function InventoryDashboard() {
   // Cálculos dinámicos de métricas a partir del listado completo
   const totalSkus = inventory.length;
   const totalValue = inventory.reduce((acc, item) => acc + item.total_value, 0);
-  const outOfStock = inventory.filter(item => item.current_stock === 0).length;
-
+  const belowMinStock = inventory.filter(item => item.current_stock < item.min_stock).length;
   // Formateadores
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
@@ -56,9 +55,9 @@ export function InventoryDashboard() {
           icon={<DollarSign className="h-5 w-5 text-green-500" />}
         />
         <KpiCard
-          title="Alertas de Agotados"
-          value={loading ? "..." : formatNumber(outOfStock)}
-          description="Productos con saldo en cero"
+          title="Alertas de Stock Bajo"
+          value={loading ? "..." : formatNumber(belowMinStock)}
+          description="Productos con stock por debajo del mínimo"
           icon={<AlertTriangle className="h-5 w-5 text-brand-orange" />}
         />
       </div>
