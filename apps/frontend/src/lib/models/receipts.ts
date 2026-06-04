@@ -6,16 +6,16 @@ export interface ProcessedInvoice {
   itemsCount: number;
   totalValue: number;
   items: ReceiptItem[];
+  syscafe_json: any[]; 
 }
 
 export interface ReceiptItem {
-  referencia_proveedor: string;
-  referencia_syscafe: string;
+  sku: string;         
   nombre: string;
   cantidad: number;
-  costo_unitario: number;
-  iva: number;
+  costo: number;       
   homologado: boolean;
+  referencia?: string; 
 }
 
 export interface ReceiptSummary {
@@ -25,7 +25,8 @@ export interface ReceiptSummary {
 }
 
 export interface ReceiptResponse {
-  filename: string;
+  filename?: string;
   items: ReceiptItem[];
   resumen: ReceiptSummary;
+  syscafe_json: any[]; // El JSON con formato estricto que creamos en Python
 }

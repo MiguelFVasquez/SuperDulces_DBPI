@@ -20,7 +20,8 @@ export function ReceiptDashboard() {
 
     downloadInvoiceFile(
         extractedData.items,
-        extractedData.filename,
+        extractedData.syscafe_json, // Pasamos el JSON estructurado
+        extractedData.filename || currentFile?.name,
         format
     );
   };
@@ -34,57 +35,59 @@ export function ReceiptDashboard() {
         setExtractedData(null);
 
         try {
-        const result = await sendDocument(file);
+            const result = await sendDocument(file);
 
-        setExtractedData(result);
+            setExtractedData(result);
 
-        setFileStatus(
-            result.resumen.pendientes_revision > 0
-            ? `¡Atención! Pendiente homologar ${result.resumen.pendientes_revision} productos.`
-            : `¡Homologación 100% exitosa!`
-        );
+            setFileStatus(
+                result.resumen.pendientes_revision > 0
+                ? `¡Atención! Pendiente homologar ${result.resumen.pendientes_revision} productos.`
+                : `¡Homologación 100% exitosa!`
+            );
 
-        const totalValue = result.items.reduce(
-            (acc: number, item: ReceiptItem) => acc + item.cantidad * item.costo_unitario,
-            0
-        );
+            // CORRECCIÓN: Usamos item.costo porque el backend lo envía así
+            const totalValue = result.items.reduce(
+                (acc: number, item: ReceiptItem) => acc + item.cantidad * item.costo,
+                0
+            );
 
-        const newRecord: ProcessedInvoice = {
-            id: Date.now().toString(),
-            fileName: file.name,
-            date: new Date().toLocaleDateString('es-CO'),
-            itemsCount: result.resumen.total_items,
-            totalValue,
-            items: result.items,
-        };
+            const newRecord: ProcessedInvoice = {
+                id: Date.now().toString(),
+                fileName: file.name,
+                date: new Date().toLocaleDateString('es-CO'),
+                itemsCount: result.resumen.total_items,
+                totalValue,
+                items: result.items,
+                syscafe_json: result.syscafe_json, // CORRECCIÓN: Guardamos esto para descargas futuras
+            };
 
-        setHistory((prev) => [newRecord, ...prev]);
+            setHistory((prev) => [newRecord, ...prev]);
         } catch (error: any) {
-        console.error("Error al procesar el archivo:", error);
-        setFileStatus(`Error: ${error.response?.data?.detail || "Fallo en la comunicación con el servidor"}`);
-        setCurrentFile(null);
+            console.error("Error al procesar el archivo:", error);
+            setFileStatus(`Error: ${error.response?.data?.detail || "Fallo en la comunicación con el servidor"}`);
+            setCurrentFile(null);
         } finally {
-        setIsProcessing(false);
+            setIsProcessing(false);
         }
     }
-    };
+  };
     
   const downloadInvoiceFile = (
-      items: any[], // Cambié de ReceiptItem[] a any[] para evitar errores de tipo mientras depuras
-      fileName: string | undefined, // Puede ser undefined
+      items: ReceiptItem[], 
+      syscafeJson: any[], // Nuevo parámetro para recibir la cabecera completa
+      fileName: string | undefined, 
       format: 'JSON' | 'TXT'
   ) => {
-      // RED DE SEGURIDAD: Si no hay nombre, usa uno por defecto
       const nameToUse = fileName || 'factura_exportada';
       let finalFileName = nameToUse.split('.')[0]; 
 
       let content = '';
 
       if (format === 'JSON') {
-          content = JSON.stringify(items, null, 2);
+          // CORRECCIÓN: Descarga el JSON de SysCafé, no el arreglo de React
+          content = JSON.stringify(syscafeJson, null, 2);
           finalFileName += '.json';
       } else {
-          // CORRECCIÓN: Usa las claves que realmente envía el backend: 'sku' y 'costo'
           content =
           'referencia,cantidad,precio\n' +
           items
@@ -198,7 +201,7 @@ export function ReceiptDashboard() {
                                 <button
                                 title="Descargar JSON"
                                 onClick={() =>
-                                downloadInvoiceFile(record.items, record.fileName, "JSON")
+                                downloadInvoiceFile(record.items, record.syscafe_json, record.fileName, "JSON")
                             }
                             className="p-1.5 text-slate-400 hover:text-brand-blue hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-colors"
                             >
@@ -208,7 +211,7 @@ export function ReceiptDashboard() {
                                 <button
                                 title="Descargar TXT"
                                 onClick={() =>
-                                    downloadInvoiceFile(record.items, record.fileName, "TXT")
+                                    downloadInvoiceFile(record.items, record.syscafe_json, record.fileName, "TXT")
                             }
                             className="p-1.5 text-slate-400 hover:text-brand-orange hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded-md transition-colors"
                             >
