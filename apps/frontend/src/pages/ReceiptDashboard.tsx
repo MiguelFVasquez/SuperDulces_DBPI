@@ -68,41 +68,46 @@ export function ReceiptDashboard() {
         }
     }
     };
-    const downloadInvoiceFile = (
-        items: ReceiptItem[],
-        fileName: string,
-        format: 'JSON' | 'TXT'
-        ) => {
-        let content = '';
-        let finalFileName = fileName.split('.')[0];
+    
+  const downloadInvoiceFile = (
+      items: any[], // Cambié de ReceiptItem[] a any[] para evitar errores de tipo mientras depuras
+      fileName: string | undefined, // Puede ser undefined
+      format: 'JSON' | 'TXT'
+  ) => {
+      // RED DE SEGURIDAD: Si no hay nombre, usa uno por defecto
+      const nameToUse = fileName || 'factura_exportada';
+      let finalFileName = nameToUse.split('.')[0]; 
 
-        if (format === 'JSON') {
-            content = JSON.stringify(items, null, 2);
-            finalFileName += '.json';
-        } else {
-            content =
-            'referencia,cantidad,precio\n' +
-            items
-                .map((i) => `${i.referencia_syscafe},${i.cantidad},${i.costo_unitario}`)
-                .join('\n');
-            finalFileName += '.txt';
-        }
+      let content = '';
 
-        const blob = new Blob([content], {
-            type: format === 'JSON' ? 'application/json' : 'text/plain',
-        });
+      if (format === 'JSON') {
+          content = JSON.stringify(items, null, 2);
+          finalFileName += '.json';
+      } else {
+          // CORRECCIÓN: Usa las claves que realmente envía el backend: 'sku' y 'costo'
+          content =
+          'referencia,cantidad,precio\n' +
+          items
+              .map((i) => `${i.sku},${i.cantidad},${i.costo}`)
+              .join('\n');
+          finalFileName += '.txt';
+      }
 
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = finalFileName;
-        link.click();
-        URL.revokeObjectURL(url);
-    };
+      const blob = new Blob([content], {
+          type: format === 'JSON' ? 'application/json' : 'text/plain',
+      });
 
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = finalFileName;
+      link.click();
+      URL.revokeObjectURL(url);
+  };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
+  // FUNCION AUXILIAR PARA FORMATEAR VALORES MONETARIOS
+  //const formatCurrency = (value: number) =>
+  //  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -175,7 +180,6 @@ export function ReceiptDashboard() {
                       <th className="px-4 py-3 font-medium">Fecha</th>
                       <th className="px-4 py-3 font-medium">Archivo Origen</th>
                       <th className="px-4 py-3 font-medium text-center">Items</th>
-                      <th className="px-4 py-3 font-medium text-right">Valor Total</th>
                       <th className="px-4 py-3 font-medium text-center">Acción</th>
                     </tr>
                   </thead>
@@ -189,7 +193,6 @@ export function ReceiptDashboard() {
                             {record.itemsCount}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-700 dark:text-slate-300">{formatCurrency(record.totalValue)}</td>
                         <td className="px-4 py-3 text-center">
                             <div className="flex justify-center gap-2">
                                 <button
