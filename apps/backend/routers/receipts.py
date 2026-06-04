@@ -12,19 +12,19 @@ router = APIRouter(prefix="/receipts", tags=["Automatización"])
 async def upload_receipt(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         contents = await file.read()
-        df = extraer_con_camelot(contents) # Delegado a un utils
+        df = extraer_con_camelot(contents)
 
-        # Extraemos datos de cabecera con pdfplumber + regex, también delegado a un servicio específico
+        # 1. Sacamos la cabecera 
         datos_cabecera = extraer_cabecera_pdf(contents)
         
-        # Invocamos el servicio
-        result = process_receipt_logic(df, db)
+        # 2. Se lo pasamos al servicio
+        result = process_receipt_logic(df, db, datos_cabecera)
+        result["filename"] = file.filename
+        
         return result
         
     except ValueError as ve:
-        # Errores de lógica de negocio (ej: no encontró columna) -> 400
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        # Errores inesperados -> 500
         print(f"Error técnico: {e}")
         raise HTTPException(status_code=500, detail="Error interno procesando el archivo")

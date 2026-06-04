@@ -90,9 +90,9 @@ def extraer_cabecera_pdf(pdf_bytes: bytes) -> dict:
 
     return datos
 
-
-# --------------Función principal que procesa el DataFrame y hace la homologación
-def process_receipt_logic(df: pd.DataFrame, db: Session):
+# --------------Función principal que procesa el DataFrame y hace la homologación-----------------
+def process_receipt_logic(df: pd.DataFrame, db: Session, datos_cabecera: dict):
+    
     # 1. Encontrar cabecera
     cabecera_idx = -1
     for i in range(min(40, len(df))):
@@ -107,6 +107,12 @@ def process_receipt_logic(df: pd.DataFrame, db: Session):
     df.columns = [str(c).strip().lower().replace('\n', ' ') for c in df.iloc[cabecera_idx]]
     df = df.iloc[cabecera_idx + 1:].reset_index(drop=True)
 
+    # Limpieza básica: eliminar espacios extra y saltos de línea en todo el DataFrame
+    df = df.map(lambda x: str(x).strip().replace('\n', ' ') if pd.notnull(x) else x)
+
+    # Eliminar los duplicados exactos que a veces aparecen en las tablas extraídas de PDFs
+    df = df.drop_duplicates().reset_index(drop=True)
+    
     # 2. Mapeo
     mapeo = {
         "ref": ["codigo", "referencia", "item", "#codigo"],
@@ -124,7 +130,7 @@ def process_receipt_logic(df: pd.DataFrame, db: Session):
         if clave not in cols_reales:
             raise ValueError(f"Falta columna obligatoria: {clave}")
 
-    # 3. Procesamiento y Consolidación
+    # 3. Procesamiento y Consolidación 
     unique_items_map = {}
     
     for _, row in df.iterrows():
@@ -133,31 +139,23 @@ def process_receipt_logic(df: pd.DataFrame, db: Session):
         
         desc = str(row[cols_reales['desc']]).strip()
         
-        # Filtro 1: IGNORAR BASURA SIN NÚMEROS.
-        # Los SKU reales de Colombina y otros proveedores tienen dígitos.
-        # Esto mata instantáneamente las frases del pie de página que se colaban.
         if not ref or not any(char.isdigit() for char in ref): 
             continue
 
         raw_row_data = str(row[cols_reales['costo']])
         partes = raw_row_data.split()
         
-        # Filtro 2: EL ESCUDO DE ESTRUCTURA.
-        # Una fila real de productos tiene [Cantidad, Precio, VrBruto...].
-        # Si solo tiene 1 elemento, es un subtotal o un número suelto del pie de página.
         if len(partes) < 2:
             continue
         
-        # Ahora sí, extraemos seguros de que hay datos suficientes
         cantidad = limpiar_numero_colombiano(partes[0])
         costo = limpiar_numero_colombiano(partes[1])
         
         if cantidad <= 0: 
             continue 
 
-        # Lógica de consolidación
         if ref in unique_items_map:
-            unique_items_map[ref]['cantidad'] += cantidad
+            unique_items_map[ref]['cantidad'] = cantidad
         else:
             db_product = db.query(Product).filter(
                 (func.lower(Product.name) == func.lower(desc)) | (Product.sku == ref)
@@ -172,11 +170,62 @@ def process_receipt_logic(df: pd.DataFrame, db: Session):
             }
 
     items = list(unique_items_map.values())
+
+    # 4. Construcción del JSON Oficial de Exportación
+    nit_completo = datos_cabecera.get("nit_emisor", "")
+    items_syscafe = []
+    for item in items:
+        # Cálculos obligatorios para SysCafé basados en tu data limpia
+        vrtotal = item["cantidad"] * item["costo"]
+        piva = 19.0
+        vriva = vrtotal * (piva / 100)
+
+        items_syscafe.append({
+            "referencia": item["sku"],
+            "nombre": item["nombre"], # CAMBIO 3: Agregado el nombre
+            "servicio": "",
+            "cant": item["cantidad"],
+            "precio": item["costo"],
+            "vrunit": item["costo"],
+            "vrtotal": vrtotal,
+            "piva": piva,
+            "vriva": vriva,
+            "vrico": 0.0
+        })
+
+    syscafe_json = [
+        {
+            "tipo": "FV2",
+            "numero": datos_cabecera.get("numero", "PENDIENTE"),
+            "noext": "1",
+            "fecha": datos_cabecera.get("fecha", ""),
+            "fechaven": datos_cabecera.get("fechaven", ""),
+            "fpago": "001",
+            "nit": nit_completo,
+            "vendedor": "",
+            "ccosto": "001",
+            "succosto": "001001",
+            "detalle": "COMPRA A PROVEEDOR",
+            "obs": "Factura procesada automáticamente",
+            "items": items_syscafe,
+            "cliente": {
+                "nit": datos_cabecera.get("nit_cliente", ""),
+                "dv": "0",
+                "claseid": "C",
+                "nom1": "SUPERDULCES",
+                "nom2": "SAS",
+                "ape1": "",
+                "ape2": ""
+            }
+        }
+    ]
+
     return {
         "items": items,
         "resumen": {
             "total_items": len(items),
             "homologados_exitosos": sum(1 for i in items if i["homologado"]),
             "pendientes_revision": sum(1 for i in items if not i["homologado"])
-        }
+        },
+        "syscafe_json": syscafe_json
     }
