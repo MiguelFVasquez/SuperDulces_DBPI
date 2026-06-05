@@ -18,6 +18,11 @@ app = FastAPI(
     description="API Analítica para Dashboard de Inteligencia de Negocio"
 )
 
+origins = [
+    "https://super-dulces-dbpi.vercel.app",  # La URL de tu Vercel
+    "http://localhost:5173",                 # Para que sigas probando en local
+]
+
 # Configuración de CORS para intercomunicación con React (Vite / Next)
 app.add_middleware(
     CORSMiddleware,
