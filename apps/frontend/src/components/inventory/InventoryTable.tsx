@@ -4,8 +4,6 @@ import { Search,Pencil, Check, X, Loader2 } from "lucide-react";
 import type { Inventory } from "@/lib/models/inventory"; // Ajusta la ruta a donde guardaste la interfaz
 import { updateMinStock } from "@/lib/services/inventory_service";
 
-
-
 interface Props {
   data: Inventory[];
   onUpdateSuccess?: () => void; // Prop para notificar al padre que se actualizó el stock mínimo (opcional)
@@ -23,7 +21,7 @@ export function InventoryTable({ data, onUpdateSuccess }: Props) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Filtrado reactivo por SKU o Nombre
-  const filteredData = data.filter((item) =>
+  const filteredData = tableData.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
