@@ -15,9 +15,12 @@ DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME")
 
+
+if not all([DB_USER, DB_PASSWORD, DB_NAME]):
+    raise ValueError("Faltan variables de entorno críticas para la conexión a la base de datos. Asegúrate de que DB_USER, DB_PASSWORD y DB_NAME estén configurados.")
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
