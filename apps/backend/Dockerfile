@@ -1,10 +1,10 @@
 # 1. Usar una imagen oficial de Python ligera
 FROM python:3.11-slim
 
-# 2. Instalar Ghostscript y dependencias del sistema operativo OBLIGATORIAS para Camelot
+# 2. Instalar Ghostscript y la dependencia gráfica actualizada (libgl1)
 RUN apt-get update && apt-get install -y \
     ghostscript \
-    libgl1-mesa-glx \
+    libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. Crear el directorio de trabajo
