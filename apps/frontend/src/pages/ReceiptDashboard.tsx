@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Upload, FileJson, FileText, CheckCircle, History, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ProcessedInvoice, ReceiptItem, ReceiptResponse } from "@/lib/models/receipts"; // Define esta interfaz según tus necesidades
-import { sendDocument } from "@/lib/api"; 
-
+import type { HistoryRecord, ReceiptItem, ReceiptResponse } from "@/lib/models/receipts"; // Define esta interfaz según tus necesidades 
+import { useEffect } from 'react'; // Necesario para cargar al inicio
+import { sendDocument, getDocumentHistory, downloadJson } from "@/lib/api"; // Tus funciones de API
 
 export function ReceiptDashboard() {
   const [fileStatus, setFileStatus] = useState<string>("Esperando factura del proveedor...");
@@ -11,22 +11,39 @@ export function ReceiptDashboard() {
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   
   // Estado para manejar el historial de archivos procesados
-  const [history, setHistory] = useState<ProcessedInvoice[]>([]);
-  
+  const [history, setHistory] = useState<HistoryRecord[]>([]);
+
+
   const [extractedData, setExtractedData] = useState<ReceiptResponse | null>(null);
 
+
+  // Cargar el historial de documentos procesados al montar el componente
+  useEffect(() => {
+    const fetchHistory = async () => {
+        try {
+            const data = await getDocumentHistory();
+            setHistory(data);
+        } catch (error) {
+            console.error("Error al cargar historial:", error);
+        }
+    };
+    fetchHistory();
+  }, []);
+
+  // Función para manejar la descarga de archivos (JSON o TXT)
   const handleExport = (format: 'JSON' | 'TXT') => {
     if (!extractedData) return;
 
     downloadInvoiceFile(
         extractedData.items,
-        extractedData.syscafe_json, // Pasamos el JSON estructurado
+        extractedData.syscafe_json, 
         extractedData.filename || currentFile?.name,
         format
     );
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+
+const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
         const file = e.target.files[0];
         setCurrentFile(file);
@@ -35,8 +52,10 @@ export function ReceiptDashboard() {
         setExtractedData(null);
 
         try {
+            // 1. Subimos el documento (devuelve ReceiptResponse)
             const result = await sendDocument(file);
 
+            // 2. Lo guardamos en extractedData (ahora TypeScript lo acepta)
             setExtractedData(result);
 
             setFileStatus(
@@ -45,23 +64,10 @@ export function ReceiptDashboard() {
                 : `¡Homologación 100% exitosa!`
             );
 
-            // CORRECCIÓN: Usamos item.costo porque el backend lo envía así
-            const totalValue = result.items.reduce(
-                (acc: number, item: ReceiptItem) => acc + item.cantidad * item.costo,
-                0
-            );
+            // 3. Recargamos la tabla del historial (devuelve HistoryRecord[])
+            const updatedHistory = await getDocumentHistory(); 
+            setHistory(updatedHistory); 
 
-            const newRecord: ProcessedInvoice = {
-                id: Date.now().toString(),
-                fileName: file.name,
-                date: new Date().toLocaleDateString('es-CO'),
-                itemsCount: result.resumen.total_items,
-                totalValue,
-                items: result.items,
-                syscafe_json: result.syscafe_json, // CORRECCIÓN: Guardamos esto para descargas futuras
-            };
-
-            setHistory((prev) => [newRecord, ...prev]);
         } catch (error: any) {
             console.error("Error al procesar el archivo:", error);
             setFileStatus(`Error: ${error.response?.data?.detail || "Fallo en la comunicación con el servidor"}`);
@@ -189,20 +195,18 @@ export function ReceiptDashboard() {
                   <tbody>
                     {history.map((record) => (
                       <tr key={record.id} className="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-4 py-3 whitespace-nowrap">{record.date}</td>
-                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-200">{record.fileName}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{record.created_at}</td>
+                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-200">{record.file_name}</td>
                         <td className="px-4 py-3 text-center">
                           <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-md text-xs">
-                            {record.itemsCount}
+                            {record.total_items}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
                             <div className="flex justify-center gap-2">
                                 <button
                                 title="Descargar JSON"
-                                onClick={() =>
-                                downloadInvoiceFile(record.items, record.syscafe_json, record.fileName, "JSON")
-                            }
+                                onClick={() => downloadJson(Number(record.id))}
                             className="p-1.5 text-slate-400 hover:text-brand-blue hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-colors"
                             >
                             <FileJson className="h-4 w-4" />
@@ -210,9 +214,7 @@ export function ReceiptDashboard() {
 
                                 <button
                                 title="Descargar TXT"
-                                onClick={() =>
-                                    downloadInvoiceFile(record.items, record.syscafe_json, record.fileName, "TXT")
-                            }
+                                onClick={() =>downloadJson(Number(record.id))}
                             className="p-1.5 text-slate-400 hover:text-brand-orange hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded-md transition-colors"
                             >
                                 <FileText className="h-4 w-4" />

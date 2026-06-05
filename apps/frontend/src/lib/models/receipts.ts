@@ -9,6 +9,16 @@ export interface ProcessedInvoice {
   syscafe_json: any[]; 
 }
 
+
+// Esta es la estructura que realmente devuelve el backend en /history
+export interface HistoryRecord {
+  id: number;
+  file_name: string;
+  created_at: string;
+  nit: string;
+  total_items: number;
+}
+
 export interface ReceiptItem {
   sku: string;         
   nombre: string;
