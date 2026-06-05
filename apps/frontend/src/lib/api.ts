@@ -81,7 +81,22 @@ export const downloadJson = async (invoiceId: number): Promise<void> => {
   window.URL.revokeObjectURL(url);
 };
 
+// Función para descargar el TXT de una factura específica
+export const downloadTxt = async (invoiceId: number): Promise<void> => {
+  const response = await api.get(`/receipts/download-receipt-txt/${invoiceId}`, {
+    responseType: "blob", // Súper importante para que llegue como archivo
+  });
 
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `factura_${invoiceId}.txt`);
+  document.body.appendChild(link);
+  link.click();
+  
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
 // Función para actualizar el stock mínimo de un producto
 export const updateMinStock = async (sku: string, minStock: number): Promise<any> => {
   const response = await api.put(`/inventory/min-stock?sku=${sku}&min_stock=${minStock}`);

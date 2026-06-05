@@ -3,7 +3,7 @@ import { Upload, FileJson, FileText, CheckCircle, History, FileSpreadsheet } fro
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { HistoryRecord, ReceiptItem, ReceiptResponse } from "@/lib/models/receipts"; // Define esta interfaz según tus necesidades 
 import { useEffect } from 'react'; // Necesario para cargar al inicio
-import { sendDocument, getDocumentHistory, downloadJson } from "@/lib/api"; // Tus funciones de API
+import { sendDocument, getDocumentHistory, downloadJson, downloadTxt } from "@/lib/api"; // Tus funciones de API
 
 export function ReceiptDashboard() {
   const [fileStatus, setFileStatus] = useState<string>("Esperando factura del proveedor...");
@@ -95,9 +95,9 @@ const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
           finalFileName += '.json';
       } else {
           content =
-          'referencia,cantidad,precio\n' +
+          'referencia,nombre,cantidad,precio\n' +
           items
-              .map((i) => `${i.sku},${i.cantidad},${i.costo}`)
+              .map((i) => `${i.sku},"${i.nombre}",${i.cantidad},${i.costo}`)
               .join('\n');
           finalFileName += '.txt';
       }
@@ -214,7 +214,7 @@ const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
                                 <button
                                 title="Descargar TXT"
-                                onClick={() =>downloadJson(Number(record.id))}
+                                onClick={() => downloadTxt(Number(record.id))}
                             className="p-1.5 text-slate-400 hover:text-brand-orange hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded-md transition-colors"
                             >
                                 <FileText className="h-4 w-4" />

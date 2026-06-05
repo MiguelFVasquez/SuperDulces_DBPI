@@ -76,3 +76,40 @@ async def download_json(invoice_id: int, db: Session = Depends(get_db)):
         media_type="application/json",
         headers={"Content-Disposition": f"attachment; filename=factura_{record.id}.json"}
     )
+
+
+
+@router.get("/download-receipt-txt/{invoice_id}")
+async def download_txt(invoice_id: int, db: Session = Depends(get_db)):
+    # 1. Buscamos el registro en la base de datos
+    record = db.query(InvoiceHistory).filter(InvoiceHistory.id == invoice_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Factura no encontrada")
+    
+    # 2. Extraemos los items del JSON guardado.
+    # Recordar que json_data es una lista con 1 diccionario adentro: [{ "tipo": "FV2", ..., "items": [...] }]
+    try:
+        factura_data = record.json_data[0] 
+        items = factura_data.get("items", [])
+    except (IndexError, AttributeError):
+        raise HTTPException(status_code=500, detail="Formato de datos corrupto en la base de datos")
+
+    # 3. Construimos el contenido del TXT
+    lineas = ["referencia,nombre,cantidad,precio"]
+    for item in items:
+        # Formateamos los números para quitar decimales si son ceros, tal como lo querías
+        cant = int(item['cant']) if item['cant'] % 1 == 0 else item['cant']
+        precio = int(item['precio']) if item['precio'] % 1 == 0 else item['precio']
+        nombre = item.get("nombre", "")
+        nombre_seguro = f'"{nombre}"'
+        
+        lineas.append(f"{item['referencia']},{nombre_seguro},{cant},{precio}")
+    
+    txt_content = "\n".join(lineas)
+    
+    # 4. Retornamos el archivo de texto plano
+    return Response(
+        content=txt_content, 
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename=factura_{record.id}.txt"}
+    )
