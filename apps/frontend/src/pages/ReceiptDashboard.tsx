@@ -3,7 +3,7 @@ import { Upload, FileJson, FileText, CheckCircle, History, FileSpreadsheet } fro
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { HistoryRecord, ReceiptItem, ReceiptResponse } from "@/lib/models/receipts"; // Define esta interfaz según tus necesidades 
 import { useEffect } from 'react'; // Necesario para cargar al inicio
-import { sendDocument, getDocumentHistory, downloadJson, downloadTxt } from "@/lib/api"; // Tus funciones de API
+import { sendDocument, getDocumentHistory, downloadJson, downloadTxt } from "@/lib/services/receipts_services"; // Tus funciones de API
 
 export function ReceiptDashboard() {
   const [fileStatus, setFileStatus] = useState<string>("Esperando factura del proveedor...");

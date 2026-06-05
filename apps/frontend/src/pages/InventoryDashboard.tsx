@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { PackageOpen, DollarSign, AlertTriangle } from "lucide-react";
 import { KpiCard } from "@/components/KpiCard"; 
-import { getInventoryStatus } from "@/lib/api"; 
+import { getInventoryStatus } from "@/lib/services/inventory_service"; 
 import type { Inventory } from "@/lib/models/inventory"; 
 import { InventoryTable } from "@/components/inventory/InventoryTable"; 
 

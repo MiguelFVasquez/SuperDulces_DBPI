@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search,Pencil, Check, X, Loader2 } from "lucide-react";
 import type { Inventory } from "@/lib/models/inventory"; // Ajusta la ruta a donde guardaste la interfaz
-import { updateMinStock } from "@/lib/api"; // Asegúrate de importar la función para actualizar el stock mínimo
+import { updateMinStock } from "@/lib/services/inventory_service";
 
 
 

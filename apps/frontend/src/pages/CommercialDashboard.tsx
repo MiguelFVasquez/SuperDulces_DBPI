@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Receipt, ShoppingCart, Package, TrendingUp } from "lucide-react";
 import { KpiCard } from "@/components/KpiCard";
-import { getLeastProducts, getSalesMetrics, getTicketAverage, getTopProducts }from "@/lib/api";
+import { getLeastProducts, getSalesMetrics, getTicketAverage, getTopProducts }from "@/lib/services/sales_service";
 import type { SalesMetrics, TicketAverage, TopProduct } from "@/lib/models/metrics";
 import { ProductsAnalyticChart } from "@/components/Metrics/ProductsAnalyticChart";
 
