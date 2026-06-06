@@ -8,7 +8,8 @@ def get_db_connection():
         database=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
-        port=os.getenv("DB_PORT", "5432")
+        port=os.getenv("DB_PORT", "6543"),
+        sslmode='require'
     )
 
 # Carga de productos respetando la relación con facturas
@@ -19,7 +20,11 @@ def load_products(cursor, sales):
         if sku not in products:
             products[sku] = sale["product_name"]
 
-    for sku, name in products.items():
+    total_products = len(products)
+    for idx, (sku, name) in enumerate(products.items(), 1):
+        if idx % 500 == 0 or idx == total_products:
+            print(f"         ... guardando producto {idx} de {total_products}")
+            
         cursor.execute("""
             INSERT INTO products (sku, name)
             VALUES (%s, %s)
@@ -32,12 +37,18 @@ def load_customers(cursor, sales):
     for sale in sales:
         customers.add(sale["customer_id"])
 
-    for document in customers:
+    total_customers = len(customers)
+    for idx, document in enumerate(customers, 1):
+        if idx % 500 == 0 or idx == total_customers:
+            print(f"         ... guardando cliente {idx} de {total_customers}")
+
         cursor.execute("""
             INSERT INTO customers (document_number, name)
             VALUES (%s, %s)
             ON CONFLICT (document_number) DO NOTHING
         """, (document, "CLIENTE GENERAL"))
+
+
 
 # Carga de facturas respetando la relación con clientes
 def load_invoices(cursor, sales):
@@ -52,7 +63,11 @@ def load_invoices(cursor, sales):
             }
         invoices[invoice_id]["total_amount"] += sale["revenue"]
 
-    for invoice_id, invoice_data in invoices.items():
+    total_invoices = len(invoices)
+    for idx, (invoice_id, invoice_data) in enumerate(invoices.items(), 1):
+        if idx % 1000 == 0 or idx == total_invoices:
+            print(f"         ... guardando encabezado de factura {idx} de {total_invoices}")
+
         cursor.execute("""
             SELECT customer_id FROM customers WHERE document_number = %s
         """, (invoice_data["customer_document"],))
@@ -67,7 +82,6 @@ def load_invoices(cursor, sales):
             VALUES (%s, %s, NOW(), %s)
             ON CONFLICT (invoice_id) DO NOTHING
         """, (invoice_id, customer_id, invoice_data["total_amount"]))
-
 
 # Orquestador maestro de inserciones relacionales
 def load_sales(conn, sales):
@@ -85,7 +99,12 @@ def load_sales(conn, sales):
     load_invoices(cursor, sales)
 
     print("   ↳ Cargando detalle de transacciones de ventas...")
-    for sale in sales:
+    total_sales = len(sales)
+    for idx, sale in enumerate(sales, 1):
+        # Medidor de progreso para ventas (cada 1000 registros)
+        if idx % 1000 == 0 or idx == total_sales:
+            print(f"         ... procesando transacción {idx} de {total_sales}")
+
         cursor.execute("""
             SELECT product_id FROM products WHERE sku = %s
         """, (sale["product_code"],))
@@ -119,7 +138,12 @@ def load_articles(conn, articles):
     """
     cursor = conn.cursor()
     
-    for art in articles:
+    total_articles = len(articles)
+    for idx, art in enumerate(articles, 1):
+        # Medidor de progreso para artículos (cada 500 registros)
+        if idx % 500 == 0 or idx == total_articles:
+            print(f"      ... procesando artículo {idx} de {total_articles}")
+
         # 1. Upsert en products (Insertar o Actualizar costo y nombre)
         cursor.execute("""
             INSERT INTO products (sku, name, unit_cost)
