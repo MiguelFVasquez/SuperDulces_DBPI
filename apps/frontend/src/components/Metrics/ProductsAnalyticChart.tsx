@@ -60,6 +60,8 @@ export function ProductsAnalyticChart({ topProducts, leastProducts }: Props) {
     return [new Intl.NumberFormat("es-CO").format(num), "Unidades"];
   };
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+
   return (
     <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm w-full transition-colors duration-300">
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6">
@@ -68,10 +70,10 @@ export function ProductsAnalyticChart({ topProducts, leastProducts }: Props) {
         </CardTitle>
         
         {/* Selector de Vistas optimizado para UX */}
-        <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-medium self-end sm:self-auto">
+        <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-slate-800 text-[10px] sm:text-xs font-medium self-end sm:self-auto overflow-x-auto max-w-full">
           <button
             onClick={() => setCurrentView("top_revenue")}
-            className={`px-3 py-1.5 rounded-md transition-all ${
+            className={`px-2 sm:px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${
               currentView === "top_revenue" 
                 ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm font-semibold" 
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -81,7 +83,7 @@ export function ProductsAnalyticChart({ topProducts, leastProducts }: Props) {
           </button>
           <button
             onClick={() => setCurrentView("top_qty")}
-            className={`px-3 py-1.5 rounded-md transition-all ${
+            className={`px-2 sm:px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${
               currentView === "top_qty" 
                 ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm font-semibold" 
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
@@ -91,29 +93,32 @@ export function ProductsAnalyticChart({ topProducts, leastProducts }: Props) {
           </button>
           <button
             onClick={() => setCurrentView("least_revenue")}
-            className={`px-3 py-1.5 rounded-md transition-all ${
+            className={`px-2 sm:px-3 py-1.5 rounded-md transition-all whitespace-nowrap ${
               currentView === "least_revenue" 
                 ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm font-semibold" 
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
             }`}
           >
-            Menor Rotación
+            Baja Rotación
           </button>
         </div>
       </CardHeader>
 
-      <CardContent className="h-[400px] w-full">
+      <CardContent className="h-[350px] sm:h-[400px] w-full p-2 sm:p-6">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={config.data} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <BarChart data={config.data} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke={isDark ? "#334155" : "#f1f5f9"} /><XAxis type="number" hide />
             <YAxis 
               dataKey="name" 
               type="category" 
-              width={160} 
-              tick={{ fontSize: 10, fill: isDark ? "#94a3b8" : "#64748b" }}
+              width={isMobile ? 100 : 160} 
+              tick={{ fontSize: isMobile ? 9 : 10, fill: isDark ? "#94a3b8" : "#64748b" }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(value) => value.length > 22 ? `${value.substring(0, 22)}...` : value}
+              tickFormatter={(value) => {
+                const limit = isMobile ? 15 : 22;
+                return value.length > limit ? `${value.substring(0, limit)}...` : value;
+              }}
             />
             <Tooltip 
               cursor={{ fill: isDark ? '#1e293b' : '#f8fafc' }}

@@ -112,13 +112,13 @@ export function InventoryTable({ data, onUpdateSuccess }: Props) {
           <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
             <thead className="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-800/50 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10 shadow-sm">
               <tr>
-                <th scope="col" className="px-6 py-3 font-medium">SKU</th>
-                <th scope="col" className="px-6 py-3 font-medium">Producto</th>
-                <th scope="col" className="px-6 py-3 font-medium text-right">Costo Unit.</th>
-                <th scope="col" className="px-6 py-3 font-medium text-right">Stock</th>
-                <th scope="col" className="px-6 py-3 font-medium text-right">Valor Total</th>
-                <th scope="col" className="px-6 py-3 font-medium text-right">Stock Mínimo</th>
-                <th scope="col" className="px-6 py-3 font-medium text-center">Acciones</th>
+                <th scope="col" className="px-4 sm:px-6 py-3 font-medium">SKU</th>
+                <th scope="col" className="px-4 sm:px-6 py-3 font-medium">Producto</th>
+                <th scope="col" className="hidden lg:table-cell px-6 py-3 font-medium text-right">Costo Unit.</th>
+                <th scope="col" className="px-4 sm:px-6 py-3 font-medium text-right">Stock</th>
+                <th scope="col" className="hidden md:table-cell px-6 py-3 font-medium text-right">Valor Total</th>
+                <th scope="col" className="px-4 sm:px-6 py-3 font-medium text-right">Mínimo</th>
+                <th scope="col" className="px-4 sm:px-6 py-3 font-medium text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -129,44 +129,44 @@ export function InventoryTable({ data, onUpdateSuccess }: Props) {
                     key={`${item.sku}-${index}`}
                     className="bg-white dark:bg-slate-900 border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                   >
-                    <td className="px-6 py-3 font-medium text-slate-900 dark:text-slate-200 whitespace-nowrap">
+                    <td className="px-4 sm:px-6 py-3 font-medium text-slate-900 dark:text-slate-200 whitespace-nowrap">
                       {item.sku}
                     </td>
-                    <td className="px-6 py-3 truncate max-w-[250px]" title={item.name}>
+                    <td className="px-4 sm:px-6 py-3 truncate max-w-[120px] sm:max-w-[250px]" title={item.name}>
                       {item.name}
                     </td>
-                    <td className="px-6 py-3 text-right">
+                    <td className="hidden lg:table-cell px-6 py-3 text-right">
                       {formatCurrency(item.unit_cost)}
                     </td>
-                    <td className="px-6 py-3 text-right">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${item.current_stock > 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
+                    <td className="px-4 sm:px-6 py-3 text-right">
+                      <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${item.current_stock > 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
                         {formatNumber(item.current_stock)}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-right font-medium text-slate-700 dark:text-slate-300">
+                    <td className="hidden md:table-cell px-6 py-3 text-right font-medium text-slate-700 dark:text-slate-300">
                       {formatCurrency(item.total_value)}
                     </td>
-                    <td className="px-6 py-3 text-center">
+                    <td className="px-4 sm:px-6 py-3 text-center">
                       {editingSku === item.sku ? (
                         <input
                           type="number"
                           min="0"
                           value={editValue}
                           onChange={(e) => setEditValue(Number(e.target.value))}
-                          className="w-20 px-2 py-1 text-center bg-white dark:bg-slate-950 border border-brand-orange rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/50 dark:text-white"
+                          className="w-14 sm:w-20 px-1 sm:px-2 py-1 text-center bg-white dark:bg-slate-950 border border-brand-orange rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange/50 dark:text-white"
                           autoFocus
                           disabled={isSaving}
                         />
                       ) : (
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${item.current_stock < item.min_stock ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'}`}>
+                        <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${item.current_stock < item.min_stock ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'}`}>
                           {formatNumber(item.min_stock)}
                         </span>
                       )}
                     </td>
                     {/* CELDA DE ACCIONES */}
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-2 sm:px-4 py-3 text-center">
                       {editingSku === item.sku ? (
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-1 sm:gap-2">
                           {isSaving ? (
                             <Loader2 className="h-4 w-4 animate-spin text-brand-orange" />
                           ) : (
@@ -183,10 +183,10 @@ export function InventoryTable({ data, onUpdateSuccess }: Props) {
                       ) : (
                         <button 
                           onClick={() => startEditing(item.sku, item.min_stock)} 
-                          className="p-1.5 text-slate-400 hover:text-brand-blue hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                          className="p-1 sm:p-1.5 text-slate-400 hover:text-brand-blue hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
                           title="Editar stock mínimo"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         </button>
                       )}
                     </td>

@@ -188,16 +188,16 @@ const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
                     <tr>
                       <th className="px-4 py-3 font-medium">Fecha</th>
                       <th className="px-4 py-3 font-medium">Archivo Origen</th>
-                      <th className="px-4 py-3 font-medium text-center">Items</th>
+                      <th className="hidden sm:table-cell px-4 py-3 font-medium text-center">Items</th>
                       <th className="px-4 py-3 font-medium text-center">Acción</th>
                     </tr>
                   </thead>
                   <tbody>
                     {history.map((record) => (
                       <tr key={record.id} className="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-4 py-3 whitespace-nowrap">{record.created_at}</td>
-                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-200">{record.file_name}</td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 whitespace-nowrap text-[10px] sm:text-sm">{record.created_at}</td>
+                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-200 truncate max-w-[100px] sm:max-w-xs">{record.file_name}</td>
+                        <td className="hidden sm:table-cell px-4 py-3 text-center">
                           <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-md text-xs">
                             {record.total_items}
                           </span>

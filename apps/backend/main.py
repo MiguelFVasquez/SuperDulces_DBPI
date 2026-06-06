@@ -3,14 +3,16 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from routers import receipts
+from routers import inventory
+from routers import metrics
+
 
 # Configurar rutas y entorno de forma absoluta y limpia
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
-from routers import receipts
-from routers import inventory
-from routers import metrics
+
 
 app = FastAPI(
     title=os.getenv("PROJECT_NAME", "SuperDulces BI API"),
