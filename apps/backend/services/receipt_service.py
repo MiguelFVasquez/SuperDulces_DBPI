@@ -1,11 +1,16 @@
 import io
+import json
 import math
+import os
 import re
+import smtplib
 import pdfplumber
 import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from models.analytics import Product 
+from models.analytics import Product
+from email.message import EmailMessage
+import smtplib 
 
 # Función auxiliar para limpiar y convertir números con formato colombiano a float
 def limpiar_numero_colombiano(val) -> float:
@@ -229,3 +234,125 @@ def process_receipt_logic(df: pd.DataFrame, db: Session, datos_cabecera: dict):
         },
         "syscafe_json": syscafe_json
     }
+
+
+# LÓGICA EN SEGUNDO PLANO: Envío del correo con plantilla HTML y adjunto
+def send_html_email_task(invoice_id: int, file_name: str, nit: str, total_items: int, json_data: list):
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    target_email = os.getenv("TARGET_EMAIL")
+
+    if not all([smtp_user, smtp_password, target_email]):
+        print("❌ Error SMTP: Faltan variables de entorno (SMTP_USER, SMTP_PASSWORD o TARGET_EMAIL)")
+        return
+
+    # 1. Crear el contenedor del mensaje
+    msg = EmailMessage()
+    msg['Subject'] = f'📊 Reporte de Factura Procesada - ID #{invoice_id}'
+    msg['From'] = smtp_user
+    msg['To'] = target_email
+
+    # 2. Versión en texto plano (Fallback si el gestor de correo no soporta HTML)
+    text_fallback = f"""
+    Hola,
+    Se ha procesado con éxito la factura ID #{invoice_id}.
+    - Archivo original: {file_name}
+    - NIT Emisor: {nit}
+    - Total de ítems estructurados: {total_items}
+    
+    El documento estructurado en formato JSON se encuentra adjunto a este correo.
+    """
+    msg.set_content(text_fallback)
+
+    # 3. Diseño de la Plantilla HTML (Estilos inline para compatibilidad con Gmail/Outlook)
+    html_template = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333333; margin: 0; padding: 0; }}
+            .container {{ max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e1e5eb; }}
+            .header {{ background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: #ffffff; padding: 30px 20px; text-align: center; }}
+            .header h1 {{ margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0.5px; }}
+            .header p {{ margin: 5px 0 0 0; opacity: 0.8; font-size: 14px; }}
+            .content {{ padding: 30px 25px; }}
+            .welcome {{ font-size: 16px; color: #4a5568; line-height: 1.6; margin-bottom: 25px; }}
+            .card {{ background-color: #f8fafc; border-left: 4px solid #2a5298; padding: 20px; border-radius: 0 6px 6px 0; margin-bottom: 25px; }}
+            .card-title {{ font-weight: bold; color: #1e3c72; margin-bottom: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }}
+            .info-grid {{ display: table; width: 100%; }}
+            .info-row {{ display: table-row; }}
+            .info-label {{ display: table-cell; padding: 6px 0; font-weight: 600; color: #4a5568; width: 40%; font-size: 14px; }}
+            .info-value {{ display: table-cell; padding: 6px 0; color: #1a202c; font-size: 14px; }}
+            .footer {{ background-color: #f1f5f9; text-align: center; padding: 15px; font-size: 12px; color: #718096; border-top: 1px solid #e2e8f0; }}
+            .badge {{ background-color: #def7ec; color: #03543f; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Factura Procesada con Éxito</h1>
+                <p>Automatización de Procesos - SuperDulces BI</p>
+            </div>
+            <div class="content">
+                <p class="welcome">Hola Administradores de SuperDulces,</p>
+                <p class="welcome">Les informamos que un nuevo documento PDF ha sido extraído, normalizado e integrado correctamente al flujo analítico del sistema. A continuación se presentan los detalles clave del procesamiento:</p>
+                
+                <div class="card">
+                    <div class="card-title">Métricas de la Operación</div>
+                    <div class="info-grid">
+                        <div class="info-row">
+                            <div class="info-label">ID de Registro:</div>
+                            <div class="info-value"><strong>#{invoice_id}</strong></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Archivo de Origen:</div>
+                            <div class="info-value" style="word-break: break-all;">{file_name}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">NIT del Emisor:</div>
+                            <div class="info-value">{nit if nit else 'No detectado'}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Ítems Extraídos:</div>
+                            <div class="info-value">{total_items} unidades</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Estado:</div>
+                            <div class="info-value"><span class="badge">Listo para SysCafé</span></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="welcome" style="font-size: 14px; color: #718096;">He adjuntado a este mensaje el archivo completo <strong>factura_{invoice_id}.json</strong> estructurado bajo la especificación técnica requerida por el sistema contable.</p>
+            </div>
+            <div class="footer">
+                Este es un mensaje automático generado por el Subsistema de Extracción de Datos de SuperDulces BI.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    msg.add_alternative(html_template, subtype='html')
+
+    # 4. Serializar el JSON que está guardado en la DB y adjuntarlo
+    try:
+        json_string = json.dumps(json_data, indent=4, ensure_ascii=False)
+        msg.add_attachment(
+            json_string.encode('utf-8'),
+            maintype='application',
+            subtype='json',
+            filename=f'factura_{invoice_id}.json'
+        )
+    except Exception as je:
+        print(f"❌ Error al adjuntar JSON: {je}")
+        return
+
+    # 5. Envío TLS/SSL seguro mediante Gmail
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(smtp_user, smtp_password)
+            smtp.send_message(msg)
+            print(f"✅ [ID #{invoice_id}] Correo HTML enviado con éxito a {target_email}")
+    except Exception as e:
+        print(f"❌ Error técnico SMTP al enviar correo de factura #{invoice_id}: {e}")

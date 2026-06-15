@@ -1,9 +1,10 @@
 import json
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Response
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Response, BackgroundTasks
 from sqlalchemy.orm import Session
 from models.history import InvoiceHistory
 from services.receipt_service import process_receipt_logic
 from services.receipt_service import extraer_cabecera_pdf
+from services.receipt_service import send_html_email_task
 from utils.pdf_parser import extraer_con_camelot 
 from config.database import get_db
 
@@ -113,3 +114,26 @@ async def download_txt(invoice_id: int, db: Session = Depends(get_db)):
         media_type="text/plain",
         headers={"Content-Disposition": f"attachment; filename=factura_{record.id}.txt"}
     )
+
+# --- Desparar el envío de correo desde el Frontend ---
+@router.post("/send-email/{invoice_id}")
+async def trigger_invoice_email(invoice_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """
+    Busca el historial de la factura por su ID y delega la construcción del correo 
+    y adjunto HTML a un hilo secundario de ejecución (BackgroundTasks).
+    """
+    record = db.query(InvoiceHistory).filter(InvoiceHistory.id == invoice_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="El registro de factura solicitado no existe.")
+
+    # Agregamos la tarea pesada a la cola en segundo plano para responder de inmediato al usuario
+    background_tasks.add_task(
+        send_html_email_task,
+        record.id,
+        record.file_name,
+        record.nit,
+        record.total_items,
+        record.json_data
+    )
+
+    return {"status": "success", "message": f"El envío del correo para la factura #{invoice_id} ha sido encolado con éxito."}
