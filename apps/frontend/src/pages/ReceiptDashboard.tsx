@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Upload, FileJson, FileText, CheckCircle, History, FileSpreadsheet } from 'lucide-react';
+import { Upload, FileJson, FileText, CheckCircle, History, FileSpreadsheet, Mail } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { HistoryRecord, ReceiptItem, ReceiptResponse } from "@/lib/models/receipts"; // Define esta interfaz según tus necesidades 
 import { useEffect } from 'react'; // Necesario para cargar al inicio
-import { sendDocument, getDocumentHistory, downloadJson, downloadTxt } from "@/lib/services/receipts_services"; // Tus funciones de API
+import { sendDocument, getDocumentHistory, downloadJson, downloadTxt, sendInvoiceEmail } from "@/lib/services/receipts_services"; // Tus funciones de API
 
 export function ReceiptDashboard() {
   const [fileStatus, setFileStatus] = useState<string>("Esperando factura del proveedor...");
@@ -41,6 +41,27 @@ export function ReceiptDashboard() {
         format
     );
   };
+
+  const handleSendEmail = async (invoiceId: number) => {
+  setIsProcessing(true); // O puedes usar un estado local exclusivo como setIsSending(true)
+  
+  try {
+    // 1. Llamamos al servicio pasando únicamente el ID numérico
+    const result = await sendInvoiceEmail(invoiceId);
+
+    // 2. Notificamos al usuario con el mensaje estructurado que viene del backend
+    alert(`🚀 ${result.message}`);
+    
+  } catch (error: any) {
+    console.error("Error al solicitar el envío de correo:", error);
+    
+    // Captura el error tipificado de Axios igual que en tu handleFileUpload
+    const errorMsg = error.response?.data?.detail || "Fallo en la comunicación con el servidor SMTP";
+    alert(`Error: ${errorMsg}`);
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
 
 const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,6 +187,9 @@ const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
                   <button onClick={() => handleExport('TXT')} className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors w-full">
                     <FileText className="h-4 w-4" /> Formato TXT
                   </button>
+                  <button onClick={() => handleSendEmail(Number(history[0]?.id))} disabled={isProcessing || history.length === 0} className="flex items-center justify-center gap-2 bg-brand-blue hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                    <FileSpreadsheet className="h-4 w-4" /> Enviar por Email
+                  </button>
                 </div>
               )}
             </CardContent>
@@ -204,21 +228,32 @@ const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
                         </td>
                         <td className="px-4 py-3 text-center">
                             <div className="flex justify-center gap-2">
-                                <button
+                            {/* Botones de acción para cada registro del historial */}
+                            {/*Botón para descargar JSON*/}
+                            <button
                                 title="Descargar JSON"
                                 onClick={() => downloadJson(Number(record.id))}
                             className="p-1.5 text-slate-400 hover:text-brand-blue hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-colors"
                             >
                             <FileJson className="h-4 w-4" />
                             </button>
-
-                                <button
+                            {/*Botón para descargar TXT*/}
+                            <button
                                 title="Descargar TXT"
                                 onClick={() => downloadTxt(Number(record.id))}
                             className="p-1.5 text-slate-400 hover:text-brand-orange hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded-md transition-colors"
                             >
                                 <FileText className="h-4 w-4" />
-                                </button>
+                            </button>
+                            {/*Botón para enviar por Email*/}
+                            <button
+                              title="Enviar reporte por Email"
+                              disabled={isProcessing}
+                              onClick={() => handleSendEmail(Number(record.id))}
+                              className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <Mail className="h-4 w-4" />
+                            </button>
                             </div>
                         </td>
                       </tr>

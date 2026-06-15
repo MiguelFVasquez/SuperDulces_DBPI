@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { HistoryRecord, ReceiptResponse } from "../models/receipts";
+import type { EmailResponse, HistoryRecord, ReceiptResponse } from "../models/receipts";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_BASE_URL, 
@@ -58,4 +58,15 @@ export const downloadTxt = async (invoiceId: number): Promise<void> => {
   
   link.remove();
   window.URL.revokeObjectURL(url);
+};
+
+
+/**
+ * Solicita al backend el envío de la factura estructurada por correo electrónico
+ * @param invoiceId ID del registro histórico de la factura en la base de datos
+ */
+export const sendInvoiceEmail = async (invoiceId: number): Promise<EmailResponse> => {
+  // Enviamos la petición POST al nuevo endpoint con el ID en la URL
+  const response = await api.post<EmailResponse>(`/receipts/send-email/${invoiceId}`);
+  return response.data;
 };

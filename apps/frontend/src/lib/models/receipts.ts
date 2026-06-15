@@ -9,7 +9,6 @@ export interface ProcessedInvoice {
   syscafe_json: any[]; 
 }
 
-
 // Esta es la estructura que realmente devuelve el backend en /history
 export interface HistoryRecord {
   id: number;
@@ -39,4 +38,10 @@ export interface ReceiptResponse {
   items: ReceiptItem[];
   resumen: ReceiptSummary;
   syscafe_json: any[]; // El JSON con formato estricto que creamos en Python
+}
+
+
+export interface EmailResponse {
+  status: string;
+  message: string;
 }
