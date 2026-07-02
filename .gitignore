@@ -214,3 +214,4 @@ temp/
 # OPTIONAL: KEEP EMPTY FOLDERS TRACKED
 # =========================================================
 !.gitkeep
+rules.md

@@ -6,6 +6,8 @@ from services.receipt_service import process_receipt_logic
 from services.receipt_service import extraer_cabecera_pdf
 from services.receipt_service import send_html_email_task
 from utils.pdf_parser import extraer_con_camelot 
+from utils.pdf_parser import extraer_con_markdown
+from utils.pdf_parser import extraer_con_pymupdf_tables
 from config.database import get_db
 
 
@@ -15,12 +17,14 @@ router = APIRouter(prefix="/receipts", tags=["Automatización"])
 async def upload_receipt(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         contents = await file.read()
-        df = extraer_con_camelot(contents)
+        
+        # EXTRACCIÓN GEOMÉTRICA: Usamos PyMuPDF find_tables() para preservar estructura tabular
+        df = extraer_con_pymupdf_tables(contents)
 
         # 1. Sacamos la cabecera 
         datos_cabecera = extraer_cabecera_pdf(contents)
         
-        # 2. Se lo pasamos al servicio
+        # 2. Se lo pasamos al servicio (Tu lógica intacta)
         result = process_receipt_logic(df, db, datos_cabecera)
         result["filename"] = file.filename
         
@@ -115,7 +119,7 @@ async def download_txt(invoice_id: int, db: Session = Depends(get_db)):
         headers={"Content-Disposition": f"attachment; filename=factura_{record.id}.txt"}
     )
 
-# --- Desparar el envío de correo desde el Frontend ---
+# --- Disparar el envío de correo desde el Frontend ---
 @router.post("/send-email/{invoice_id}")
 async def trigger_invoice_email(invoice_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """

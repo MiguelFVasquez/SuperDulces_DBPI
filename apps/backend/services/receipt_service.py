@@ -6,6 +6,9 @@ import re
 import smtplib
 import pdfplumber
 import pandas as pd
+import fitz  # PyMuPDF
+import pymupdf4llm
+import re
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from models.analytics import Product
@@ -135,33 +138,39 @@ def process_receipt_logic(df: pd.DataFrame, db: Session, datos_cabecera: dict):
         if clave not in cols_reales:
             raise ValueError(f"Falta columna obligatoria: {clave}")
 
-    # 3. Procesamiento y Consolidación 
+    # 3. Procesamiento y Consolidación
     unique_items_map = {}
     
     for _, row in df.iterrows():
+        # Obtenemos la referencia (segura)
         raw_ref = str(row[cols_reales['ref']]).strip()
         ref = raw_ref.split()[-1] if raw_ref else ""
         
+        # Obtenemos la descripción
         desc = str(row[cols_reales['desc']]).strip()
         
+        # Validamos que sea un ítem válido
         if not ref or not any(char.isdigit() for char in ref): 
             continue
 
-        raw_row_data = str(row[cols_reales['costo']])
-        partes = raw_row_data.split()
+        # --- AQUÍ ESTÁ LA MEJORA ---
+        # Leemos las celdas directamente de las columnas mapeadas
+        val_cant = str(row[cols_reales['cant']])
+        val_costo = str(row[cols_reales['costo']])
         
-        if len(partes) < 2:
-            continue
-        
-        cantidad = limpiar_numero_colombiano(partes[0])
-        costo = limpiar_numero_colombiano(partes[1])
+        # Limpiamos usando tu función existente
+        cantidad = limpiar_numero_colombiano(val_cant)
+        costo = limpiar_numero_colombiano(val_costo)
+        # ---------------------------
         
         if cantidad <= 0: 
             continue 
 
+        # Si el producto ya existe en el map, sumamos la cantidad (por si sale en varias filas)
         if ref in unique_items_map:
-            unique_items_map[ref]['cantidad'] = cantidad
+            unique_items_map[ref]['cantidad'] += cantidad
         else:
+            # Buscar en DB
             db_product = db.query(Product).filter(
                 (func.lower(Product.name) == func.lower(desc)) | (Product.sku == ref)
             ).first()
@@ -186,8 +195,8 @@ def process_receipt_logic(df: pd.DataFrame, db: Session, datos_cabecera: dict):
         vriva = vrtotal * (piva / 100)
 
         items_syscafe.append({
-            "referencia": item["sku"],
-            "nombre": item["nombre"], # CAMBIO 3: Agregado el nombre
+            "plu": item["sku"],
+            "detalle": item["nombre"], 
             "servicio": "",
             "cant": item["cantidad"],
             "precio": item["costo"],
