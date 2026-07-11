@@ -3,33 +3,40 @@ import pandas as pd
 import fitz  # PyMuPDF
 import pymupdf4llm
 import re
+import unicodedata
 
+def normalizar_texto(texto: str) -> str:
+    """Elimina tildes, saltos de línea y convierte a minúsculas para comparaciones seguras."""
+    if not str(texto):
+        return ""
+    texto = str(texto).strip().replace("\n", " ")
+    return unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8').lower()
 
 def extraer_con_pymupdf_tables(pdf_bytes: bytes) -> pd.DataFrame:
     """
     Usa PyMuPDF find_tables() con motor geométrico para extraer tablas.
     No convierte a Markdown. Preserva la estructura tabular original basada en
-    coordenadas y líneas de tabla. Valida encabezados mínimos y descarta basura.
-
-    Soporta dos escenarios:
-    - Tablas con bordes vectoriales (detecta filas individuales).
-    - Tablas sin bordes donde find_tables() colapsa todo en una celda
-      (parsea el contenido textual de la celda, cada producto por línea).
+    coordenadas y líneas de tabla. Valida encabezados flexibles y descarta basura.
     """
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
-    # ── Palabras clave ──────────────────────────────────────────────
-    keywords_codigo = {"codigo", "referencia", "item", "#codigo", "código"}
-    keywords_cantidad = {"cantidad", "unidad", "despachada", "cant"}
-    keywords_costo = {"costo", "precio", "valor unitario", "precio unid", "vr. unitario", "valor"}
+    # ── Palabras clave normalizadas (sin tildes y en minúsculas) ────────
+    keywords_codigo = {"codigo", "cod", "referencia", "ref", "item", "plu", "sku", "id", "#codigo"}
+    keywords_desc = {"descrip", "producto", "detalle", "articulo", "nombre", "concepto", "bien"}
+    keywords_cantidad = {"cantidad", "unidad", "despachada", "cant", "und", "u/m", "unidades", "qty"}
+    keywords_costo = {"costo", "precio", "valor", "unitario", "unid", "vr.", "vlr", "val.", "vrunit", "unit"}
 
     def tiene_encabezados_minimos(row):
-        row_text = " ".join(str(c).strip().lower().replace("\n", " ") for c in row if c)
+        # Normalizamos toda la fila para ignorar tildes y mayúsculas
+        row_text = " ".join(normalizar_texto(c) for c in row if c)
+        
         has_codigo = any(k in row_text for k in keywords_codigo)
+        has_desc = any(k in row_text for k in keywords_desc)
         has_cantidad = any(k in row_text for k in keywords_cantidad)
         has_costo = any(k in row_text for k in keywords_costo)
-        has_descrip = "descrip" in row_text
-        return has_codigo and has_cantidad and has_costo and has_descrip
+        
+        # Flexibilidad: Si cumple con al menos 3 de los 4 pilares, es una cabecera válida
+        return sum([has_codigo, has_desc, has_cantidad, has_costo]) >= 3
 
     def es_fila_valida(row):
         if not row or not row[0]:
@@ -37,23 +44,27 @@ def extraer_con_pymupdf_tables(pdf_bytes: bytes) -> pd.DataFrame:
         val = str(row[0]).strip()
         if not val:
             return False
-        # El primer token (código producto) debe ser numérico
+            
+        # Limpieza flexible del primer token (permite códigos alfanuméricos como REF102 o 10023-A)
         primer_token = val.split()[0] if val.split() else ''
-        if not primer_token.isdigit():
+        token_limpio = re.sub(r'[^a-zA-Z0-9]', '', primer_token)
+        
+        # Validamos que tenga al menos un número y no sea un encabezado/subtotal infiltrado
+        if not any(char.isdigit() for char in token_limpio):
             return False
-        val_lower = val.lower()
-        if any(word in val_lower for word in ("total", "subtotal", "iva", "página", "pagina", "numero", "nota")):
+            
+        val_lower = normalizar_texto(val)
+        palabras_basura = ("total", "subtotal", "iva", "pagina", "numero", "nota", "observacion", "validez", "vencimiento")
+        if any(word in val_lower for word in palabras_basura):
             return False
+            
         return True
 
     # ── Helper: parsea líneas de producto desde el texto de una celda ──
     def parsear_celda_unificada(cell_text):
         """
-        El texto contiene todos los productos en líneas separadas por \\n.
-        Cada línea de producto tiene formato:
-          CODIGO DESCRIPCION ... carton 0 cantidad precio unitario vr_bruto ... neto_total
-        Los últimos 12 tokens son siempre campos numéricos.
-        tokens[-10] = cantidad, tokens[-9] = precio unitario.
+        El texto contiene todos los productos en líneas separadas por \n.
+        Diseñado específicamente para facturas con celdas colapsadas (ej. formato Colombina/SysCafé).
         """
         lineas = cell_text.split('\n')
         header_encontrado = False
@@ -63,15 +74,15 @@ def extraer_con_pymupdf_tables(pdf_bytes: bytes) -> pd.DataFrame:
             linea = linea.strip()
             if not linea:
                 continue
-            if 'total items' in linea.lower():
+            if 'total items' in normalizar_texto(linea):
                 continue
             if re.match(r'^[_\-=\s]+$', linea):
                 continue
 
-            # Detectar línea de encabezado
+            # Detectar línea de encabezado de forma flexible
             if not header_encontrado:
-                linea_lower = linea.lower()
-                if any(k in linea_lower for k in keywords_codigo):
+                linea_norm = normalizar_texto(linea)
+                if any(k in linea_norm for k in keywords_codigo) and any(d in linea_norm for d in keywords_desc):
                     header_encontrado = True
                 continue
 
@@ -79,9 +90,12 @@ def extraer_con_pymupdf_tables(pdf_bytes: bytes) -> pd.DataFrame:
             tokens = linea.split()
             if len(tokens) < 13:
                 continue
+            
             codigo = tokens[0]
-            if not codigo.isdigit():
+            # Flexibilizamos la validación del código en celda unificada también
+            if not any(c.isdigit() for c in codigo):
                 continue
+                
             descripcion = ' '.join(tokens[1:-12])
             cantidad_str = tokens[-10]
             precio_str = tokens[-9]
@@ -120,7 +134,6 @@ def extraer_con_pymupdf_tables(pdf_bytes: bytes) -> pd.DataFrame:
                     break
 
                 # ── Escenario B: celda unificada ──
-                # Si el header tiene celdas multilínea, buscar data inline
                 if header_cells_contenido:
                     for cell_text in header_cells_contenido:
                         productos = parsear_celda_unificada(cell_text)
@@ -155,12 +168,12 @@ def extraer_con_pymupdf_tables(pdf_bytes: bytes) -> pd.DataFrame:
     if not header_row:
         raise ValueError(
             "Tabla no detectada: no se encontraron encabezados válidos "
-            "(codigo/referencia, cantidad, costo) en el PDF."
+            "(codigo/referencia, cantidad, costo, descripcion/producto) en el PDF."
         )
     if not all_data_rows:
         raise ValueError(
             "Tabla no detectada: no se encontraron filas de datos válidas "
-            "después de los encabezados."
+            "después de los encabezados. Verifica si las filas contienen códigos de producto reconocibles."
         )
 
     df = pd.DataFrame([header_row] + all_data_rows)
@@ -171,26 +184,21 @@ def extraer_con_camelot(pdf_bytes: bytes) -> pd.DataFrame:
     """
     Usa Camelot con flavor='stream' para detectar tablas basadas en espacios.
     """
-    # Guardamos el archivo temporalmente porque Camelot necesita una ruta de archivo
     with open("temp_invoice.pdf", "wb") as f:
         f.write(pdf_bytes)
         
     try:
-        # stream detecta las columnas basándose en el espacio en blanco (el algoritmo perfecto para Colombina)
         tables = camelot.read_pdf("temp_invoice.pdf", flavor='stream', pages='all', edge_tol=50)
         
         if len(tables) == 0:
             raise ValueError("Camelot no encontró tablas en el PDF.")
         
-        # Concatenamos todas las tablas encontradas en una sola
         df_list = [table.df for table in tables]
         full_df = pd.concat(df_list, ignore_index=True)
-        
         return full_df
         
     except Exception as e:
         raise ValueError(f"Error procesando con Camelot: {str(e)}")
-    
 
 def extraer_con_markdown(pdf_bytes: bytes) -> pd.DataFrame:
     """
@@ -234,3 +242,18 @@ def extraer_con_markdown(pdf_bytes: bytes) -> pd.DataFrame:
     df = pd.DataFrame(filas)
     return df
     
+
+def extraer_texto_para_llm(pdf_bytes: bytes) -> str:
+    """
+    Extrae el PDF en formato Markdown (ya usas pymupdf4llm para extraer_con_markdown,
+    reusamos la misma conversión porque preserva mejor la estructura de tabla
+    que el texto plano cuando se lo pasamos al LLM).
+    """
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        md_text = pymupdf4llm.to_markdown(doc)
+    finally:
+        doc.close()
+
+    # Límite de seguridad: evita mandar facturas absurdamente largas (costo/abuso)
+    return md_text[:15000]

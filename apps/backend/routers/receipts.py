@@ -1,33 +1,43 @@
 import json
+import logging
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Response, BackgroundTasks
 from sqlalchemy.orm import Session
 from models.history import InvoiceHistory
-from services.receipt_service import process_receipt_logic
-from services.receipt_service import extraer_cabecera_pdf
-from services.receipt_service import send_html_email_task
-from utils.pdf_parser import extraer_con_camelot 
-from utils.pdf_parser import extraer_con_markdown
-from utils.pdf_parser import extraer_con_pymupdf_tables
+from services.receipt_service import (
+    process_receipt_logic,
+    process_receipt_with_llm,
+    extraer_cabecera_pdf,
+    send_html_email_task,
+)
+from utils.pdf_parser import extraer_con_pymupdf_tables, extraer_texto_para_llm
 from config.database import get_db
-
+from services.llm_extraction_service import extraer_factura_con_llm
 
 router = APIRouter(prefix="/receipts", tags=["Automatización"])
+logger = logging.getLogger(__name__)
+
 
 @router.post("/upload")
 async def upload_receipt(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         contents = await file.read()
-        
-        # EXTRACCIÓN GEOMÉTRICA: Usamos PyMuPDF find_tables() para preservar estructura tabular
-        df = extraer_con_pymupdf_tables(contents)
-
-        # 1. Sacamos la cabecera 
         datos_cabecera = extraer_cabecera_pdf(contents)
-        
-        # 2. Se lo pasamos al servicio (Tu lógica intacta)
-        result = process_receipt_logic(df, db, datos_cabecera)
+
+        # CAMINO 1: parser geométrico basado en reglas (rápido, gratis)
+        try:
+            df = extraer_con_pymupdf_tables(contents)
+            result = process_receipt_logic(df, db, datos_cabecera)
+            logger.info(f"'{file.filename}' procesada con parser de reglas")
+        except ValueError as e_reglas:
+            # CAMINO 2 (fallback): LLM Haiku 4.5
+            logger.warning(f"Parser de reglas falló en '{file.filename}' ({e_reglas}), usando fallback LLM")
+            texto_llm = extraer_texto_para_llm(contents)
+            factura_llm = extraer_factura_con_llm(texto_llm)  # puede lanzar ValueError
+            result = process_receipt_with_llm(factura_llm, db, datos_cabecera)
+            logger.info(f"'{file.filename}' procesada con fallback LLM")
+
         result["filename"] = file.filename
-        
+
         # GUARDAR EN DB
         nuevo_historial = InvoiceHistory(
             file_name=file.filename,
@@ -37,23 +47,22 @@ async def upload_receipt(file: UploadFile = File(...), db: Session = Depends(get
         )
         db.add(nuevo_historial)
         db.commit()
+        db.refresh(nuevo_historial)
 
+        result["invoice_id"] = nuevo_historial.id  # útil para que el frontend luego dispare /send-email
         return result
-    
+
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        print(f"Error técnico: {e}")
+        logger.error(f"Error técnico procesando '{file.filename}': {e}")
         raise HTTPException(status_code=500, detail="Error interno procesando el archivo")
-    
+
 
 # Endpoint para obtener el historial de facturas procesadas
 @router.get("/history")
 async def get_history(db: Session = Depends(get_db)):
-    # Traemos todo el historial, ordenado del más reciente al más antiguo
     history = db.query(InvoiceHistory).order_by(InvoiceHistory.created_at.desc()).all()
-    
-    # Retornamos una lista simplificada
     return [
         {
             "id": h.id,
@@ -67,70 +76,54 @@ async def get_history(db: Session = Depends(get_db)):
 
 
 @router.get("/download-receipt/{invoice_id}")
-async def download_json(invoice_id: int, db: Session = Depends(get_db)): 
+async def download_json(invoice_id: int, db: Session = Depends(get_db)):
     record = db.query(InvoiceHistory).filter(InvoiceHistory.id == invoice_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Factura no encontrada")
-    
-    # Serializar correctamente a JSON válido
-    # ensure_ascii=False permite que las tildes y caracteres especiales se vean bien
+
     json_content = json.dumps(record.json_data, indent=4, ensure_ascii=False)
-    
     return Response(
-        content=json_content, 
+        content=json_content,
         media_type="application/json",
         headers={"Content-Disposition": f"attachment; filename=factura_{record.id}.json"}
     )
 
 
-
 @router.get("/download-receipt-txt/{invoice_id}")
 async def download_txt(invoice_id: int, db: Session = Depends(get_db)):
-    # 1. Buscamos el registro en la base de datos
     record = db.query(InvoiceHistory).filter(InvoiceHistory.id == invoice_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Factura no encontrada")
-    
-    # 2. Extraemos los items del JSON guardado.
-    # Recordar que json_data es una lista con 1 diccionario adentro: [{ "tipo": "FV2", ..., "items": [...] }]
+
     try:
-        factura_data = record.json_data[0] 
+        factura_data = record.json_data[0]
         items = factura_data.get("items", [])
     except (IndexError, AttributeError):
         raise HTTPException(status_code=500, detail="Formato de datos corrupto en la base de datos")
 
-    # 3. Construimos el contenido del TXT
     lineas = ["referencia,nombre,cantidad,precio"]
     for item in items:
-        # Formateamos los números para quitar decimales si son ceros, tal como lo querías
         cant = int(item['cant']) if item['cant'] % 1 == 0 else item['cant']
         precio = int(item['precio']) if item['precio'] % 1 == 0 else item['precio']
         nombre = item.get("nombre", "")
         nombre_seguro = f'"{nombre}"'
-        
         lineas.append(f"{item['referencia']},{nombre_seguro},{cant},{precio}")
-    
+
     txt_content = "\n".join(lineas)
-    
-    # 4. Retornamos el archivo de texto plano
     return Response(
-        content=txt_content, 
+        content=txt_content,
         media_type="text/plain",
         headers={"Content-Disposition": f"attachment; filename=factura_{record.id}.txt"}
     )
 
+
 # --- Disparar el envío de correo desde el Frontend ---
 @router.post("/send-email/{invoice_id}")
 async def trigger_invoice_email(invoice_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """
-    Busca el historial de la factura por su ID y delega la construcción del correo 
-    y adjunto HTML a un hilo secundario de ejecución (BackgroundTasks).
-    """
     record = db.query(InvoiceHistory).filter(InvoiceHistory.id == invoice_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="El registro de factura solicitado no existe.")
 
-    # Agregamos la tarea pesada a la cola en segundo plano para responder de inmediato al usuario
     background_tasks.add_task(
         send_html_email_task,
         record.id,

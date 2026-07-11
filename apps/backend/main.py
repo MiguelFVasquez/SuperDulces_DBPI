@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from config.settings import get_settings
 from routers import receipts
 from routers import inventory
 from routers import metrics
@@ -12,7 +13,9 @@ from routers import metrics
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
-
+settings = get_settings()
+print(f"🔧 Modelos LLM configurados: {settings.llm_model_fallback}")
+print(f"🔧 .env cargado desde: {settings.Config.env_file}")
 
 app = FastAPI(
     title=os.getenv("PROJECT_NAME", "SuperDulces BI API"),
