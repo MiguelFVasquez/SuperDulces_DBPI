@@ -1,4 +1,3 @@
-import camelot
 import pandas as pd
 import fitz  # PyMuPDF
 import pymupdf4llm
@@ -179,69 +178,6 @@ def extraer_con_pymupdf_tables(pdf_bytes: bytes) -> pd.DataFrame:
     df = pd.DataFrame([header_row] + all_data_rows)
     return df
 
-
-def extraer_con_camelot(pdf_bytes: bytes) -> pd.DataFrame:
-    """
-    Usa Camelot con flavor='stream' para detectar tablas basadas en espacios.
-    """
-    with open("temp_invoice.pdf", "wb") as f:
-        f.write(pdf_bytes)
-        
-    try:
-        tables = camelot.read_pdf("temp_invoice.pdf", flavor='stream', pages='all', edge_tol=50)
-        
-        if len(tables) == 0:
-            raise ValueError("Camelot no encontró tablas en el PDF.")
-        
-        df_list = [table.df for table in tables]
-        full_df = pd.concat(df_list, ignore_index=True)
-        return full_df
-        
-    except Exception as e:
-        raise ValueError(f"Error procesando con Camelot: {str(e)}")
-
-def extraer_con_markdown(pdf_bytes: bytes) -> pd.DataFrame:
-    """
-    Convierte un PDF a Markdown usando PyMuPDF localmente y 
-    lo transforma en un DataFrame compatible con la lógica del sistema.
-    """
-    # 1. Cargar el documento desde la memoria (bytes)
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    
-    # 2. Convertir el documento entero a Markdown
-    md_text = pymupdf4llm.to_markdown(doc)
-    
-    # 3. Extraer las filas que pertenecen a tablas
-    lineas = md_text.split('\n')
-    filas = []
-    
-    for linea in lineas:
-        # Filtramos: debe contener el separador de tabla '|' 
-        # y NO ser una línea separadora de Markdown (ej. |---|---|)
-        if '|' in linea and not re.match(r'^\|[\-\|\s]+\|$', linea.strip()):
-            
-            # Limpiar asteriscos de negrita (**) y espacios extra
-            linea_limpia = linea.replace('**', '').strip()
-            
-            # Separar las columnas
-            columnas = [col.strip() for col in linea_limpia.split('|')]
-            
-            # Al hacer split con '|' al inicio y final, quedan strings vacíos en los extremos. Los quitamos.
-            if columnas and columnas[0] == '': 
-                columnas.pop(0)
-            if columnas and columnas[-1] == '': 
-                columnas.pop()
-            
-            if columnas:
-                filas.append(columnas)
-                
-    if not filas:
-        raise ValueError("No se detectaron tablas estructuradas en el documento.")
-        
-    # 4. Convertimos a DataFrame para mantener la compatibilidad con process_receipt_logic
-    df = pd.DataFrame(filas)
-    return df
-    
 
 def extraer_texto_para_llm(pdf_bytes: bytes) -> str:
     """
