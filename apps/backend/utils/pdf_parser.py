@@ -193,3 +193,39 @@ def extraer_texto_para_llm(pdf_bytes: bytes) -> str:
 
     # Límite de seguridad: evita mandar facturas absurdamente largas (costo/abuso)
     return md_text[:15000]
+
+
+def extraer_tabla_cruda(pdf_bytes: bytes) -> list[list[str]]:
+    """
+    Devuelve la tabla más grande encontrada en el PDF, SIN interpretar
+    encabezados ni validar nada — para que el usuario la mapee manualmente
+    en el frontend cuando todos los caminos automáticos fallaron.
+    Asume que la primera fila devuelta es el encabezado.
+    """
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    mejor_tabla: list[list[str]] = []
+
+    try:
+        for page in doc:
+            for strategy in ("lines", "text"):
+                tf = page.find_tables(strategy=strategy)
+                if not tf.tables:
+                    continue
+                for table in tf.tables:
+                    data = table.extract()
+                    if not data:
+                        continue
+                    # Normalizamos None -> "" y convertimos todo a string
+                    data_limpia = [[str(c).strip() if c else "" for c in row] for row in data]
+                    if len(data_limpia) > len(mejor_tabla):
+                        mejor_tabla = data_limpia
+    finally:
+        doc.close()
+
+    if not mejor_tabla or len(mejor_tabla) < 2:
+        raise ValueError(
+            "No se pudo extraer ninguna tabla reconocible de este PDF, "
+            "ni siquiera para mapeo manual. Puede que la factura sea una imagen escaneada."
+        )
+
+    return mejor_tabla
